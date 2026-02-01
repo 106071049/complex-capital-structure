@@ -28,11 +28,14 @@ import {
 
 export default function TriangleBuilderPage() {
   const [config, setConfig] = useState<ChartConfig>(defaultChartConfig)
+  const [sidebarWidth, setSidebarWidth] = useState(420)
+  const [isResizing, setIsResizing] = useState(false)
   const [zoom, setZoom] = useState(1.0)
   const [activeTab, setActiveTab] = useState<'settings' | 'segments'>('segments')
   const [labelPositions, setLabelPositions] = useState<Record<string, { x: number; y: number }>>({})
   const svgRef = useRef<SVGSVGElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const sidebarRef = useRef<HTMLElement>(null)
 
   // Clear label positions when layers change to prevent misalignment
   useEffect(() => {
@@ -80,6 +83,34 @@ export default function TriangleBuilderPage() {
   const handleImportJSON = useCallback(() => {
     fileInputRef.current?.click()
   }, [])
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsResizing(true)
+    e.preventDefault()
+  }
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return
+    const newWidth = e.clientX
+    if (newWidth >= 300 && newWidth <= 600) {
+      setSidebarWidth(newWidth)
+    }
+  }, [isResizing])
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false)
+  }, [])
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -208,7 +239,11 @@ export default function TriangleBuilderPage() {
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Control Panel */}
-        <aside className="w-[420px] border-r border-border bg-card overflow-hidden flex flex-col">
+        <aside 
+          ref={sidebarRef}
+          className="border-r border-border bg-card overflow-hidden flex flex-col relative"
+          style={{ width: `${sidebarWidth}px` }}
+        >
           <div className="border-b border-border">
             <div className="flex">
               <button
@@ -238,6 +273,17 @@ export default function TriangleBuilderPage() {
           ) : (
             <ControlPanel config={config} onChange={setConfig} />
           )}
+          
+          {/* Resizer */}
+          <div
+            onMouseDown={handleMouseDown}
+            className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/50 transition-colors ${
+              isResizing ? 'bg-primary' : ''
+            }`}
+            style={{ zIndex: 10 }}
+          >
+            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-1 h-12 bg-primary/30 rounded-l" />
+          </div>
         </aside>
 
         {/* Preview Area */}
