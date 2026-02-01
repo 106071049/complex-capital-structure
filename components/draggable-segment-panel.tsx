@@ -321,8 +321,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
           <div className="space-y-2">
             {layer.segments.map((segment, segIndex) => {
               const isBeingDragged = draggedItem?.segmentId === segment.id
-              return (
-              <div
+              return (<div
                 key={segment.id}
                 onDragOver={handleDragOver}
                 onDrop={(e) => {
