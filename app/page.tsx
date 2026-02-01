@@ -278,12 +278,22 @@ export default function TriangleBuilderPage() {
           {/* Resizer */}
           <div
             onMouseDown={handleMouseDown}
-            className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/50 transition-colors ${
-              isResizing ? 'bg-primary' : ''
-            }`}
+            className={`absolute top-0 right-0 w-2 h-full cursor-col-resize group ${
+              isResizing ? 'bg-primary/30' : 'hover:bg-primary/20'
+            } transition-all`}
             style={{ zIndex: 10 }}
           >
-            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-1 h-12 bg-primary/30 rounded-l" />
+            {/* Visual handle indicator */}
+            <div className={`absolute top-1/2 right-0 -translate-y-1/2 w-1 h-20 bg-primary/40 rounded-l transition-all ${
+              isResizing ? 'scale-110 bg-primary' : 'group-hover:scale-110 group-hover:bg-primary/60'
+            }`}>
+              {/* Grip dots */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                <div className="w-0.5 h-0.5 bg-white/60 rounded-full" />
+                <div className="w-0.5 h-0.5 bg-white/60 rounded-full" />
+                <div className="w-0.5 h-0.5 bg-white/60 rounded-full" />
+              </div>
+            </div>
           </div>
         </aside>
 
