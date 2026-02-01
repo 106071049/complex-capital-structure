@@ -264,152 +264,15 @@ export function ControlPanel({ config, onChange }: ControlPanelProps) {
           </AccordionContent>
         </AccordionItem>
 
-        {/* Layers */}
-        <AccordionItem value="layers" className="border border-border rounded-lg px-4">
+        {/* Layers - Hidden, managed in Segments tab */}
+        {/* <AccordionItem value="layers" className="border border-border rounded-lg px-4">
           <AccordionTrigger className="text-sm font-semibold">
             Layers ({config.layers.length})
           </AccordionTrigger>
           <AccordionContent className="space-y-3 pt-2">
-            {config.layers.map((layer, layerIndex) => (
-              <div
-                key={layer.id}
-                className="border border-border rounded-lg p-3 space-y-3 bg-muted/30"
-              >
-                {/* Layer header */}
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={layer.name}
-                    onChange={(e) => updateLayer(layer.id, { name: e.target.value })}
-                    className="h-7 text-xs flex-1 font-medium"
-                  />
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => moveLayer(layerIndex, "up")}
-                      disabled={layerIndex === 0}
-                    >
-                      <ChevronUp className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => moveLayer(layerIndex, "down")}
-                      disabled={layerIndex === config.layers.length - 1}
-                    >
-                      <ChevronDown className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-destructive hover:text-destructive"
-                      onClick={() => removeLayer(layer.id)}
-                      disabled={config.layers.length <= 1}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Layer height */}
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Height</Label>
-                  <Input
-                    type="number"
-                    min={20}
-                    value={layer.height}
-                    onChange={(e) => updateLayer(layer.id, { height: Number(e.target.value) })}
-                    className="h-7 text-xs"
-                  />
-                </div>
-
-                {/* Segments */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground">
-                      Segments ({layer.segments.length})
-                    </Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-xs px-2"
-                      onClick={() => normalizeLayerSegments(layer.id)}
-                    >
-                      Normalize
-                    </Button>
-                  </div>
-
-                  {layer.segments.map((segment) => (
-                    <div
-                      key={segment.id}
-                      className="flex items-center gap-2 p-2 bg-background rounded border border-border"
-                    >
-                      <input
-                        type="color"
-                        value={segment.color}
-                        onChange={(e) =>
-                          updateSegment(layer.id, segment.id, { color: e.target.value })
-                        }
-                        className="w-6 h-6 rounded cursor-pointer border-0 p-0"
-                      />
-                      <Input
-                        value={segment.label}
-                        onChange={(e) =>
-                          updateSegment(layer.id, segment.id, { label: e.target.value })
-                        }
-                        className="h-6 text-xs flex-1"
-                        placeholder="Label"
-                      />
-                      <Input
-                        type="number"
-                        value={segment.percent.toFixed(1)}
-                        onChange={(e) =>
-                          updateSegment(layer.id, segment.id, { percent: Number(e.target.value) })
-                        }
-                        className="h-6 text-xs w-16"
-                        min={0}
-                        step={0.1}
-                      />
-                      <span className="text-xs text-muted-foreground">%</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 text-destructive hover:text-destructive"
-                        onClick={() => removeSegment(layer.id, segment.id)}
-                        disabled={layer.segments.length <= 1}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full h-7 text-xs bg-transparent"
-                    onClick={() => addSegment(layer.id)}
-                    disabled={layer.segments.length >= 6}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Segment
-                  </Button>
-                </div>
-              </div>
-            ))}
-
-            <Button
-              variant="outline"
-              className="w-full bg-transparent"
-              onClick={addLayer}
-              disabled={config.layers.length >= 10}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Layer
-            </Button>
+            ...
           </AccordionContent>
-        </AccordionItem>
+        </AccordionItem> */}
       </Accordion>
     </div>
   )
