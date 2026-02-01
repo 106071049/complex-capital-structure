@@ -315,17 +315,21 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
             {layer.segments.map((segment, segIndex) => (
               <div
                 key={segment.id}
-                draggable
-                onDragStart={() => handleDragStart(layer.id, segment.id, segIndex)}
                 onDragOver={handleDragOver}
                 onDrop={(e) => {
                   e.stopPropagation()
                   handleDrop(layer.id, segIndex)
                 }}
-                className="p-2 bg-muted/50 rounded border border-border cursor-move"
+                className="p-2 bg-muted/50 rounded border border-border"
               >
                 <div className="flex items-start gap-2">
-                  <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
+                  <div
+                    draggable
+                    onDragStart={() => handleDragStart(layer.id, segment.id, segIndex)}
+                    className="cursor-move flex-shrink-0"
+                  >
+                    <GripVertical className="h-4 w-4 text-muted-foreground mt-1" />
+                  </div>
                   
                   <div className="flex-1 space-y-2 min-w-0">
                     {/* 金融商品名稱 - 全寬度 */}
