@@ -269,48 +269,52 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
             handleDrop(layer.id)
           }}
         >
-          <div className="flex items-center justify-between mb-3 gap-2">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <Input
-                value={layer.name}
-                onChange={(e) => handleUpdateLayerName(layer.id, e.target.value)}
-                className="h-8 text-sm font-semibold flex-1 min-w-[180px] text-center"
-                placeholder="層級名稱"
-              />
-              <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="space-y-2 mb-3">
+            {/* 層級名稱輸入框 - 全寬度 */}
+            <Input
+              value={layer.name}
+              onChange={(e) => handleUpdateLayerName(layer.id, e.target.value)}
+              className="h-8 text-sm font-semibold w-full text-center"
+              placeholder="層級名稱"
+            />
+            
+            {/* 百分比和按鈕控制 */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1">
                 <Input
                   type="number"
                   value={(layer.percent || 0).toFixed(1)}
                   onChange={(e) => handleUpdateLayerPercent(layer.id, parseFloat(e.target.value) || 0)}
-                  className="h-8 text-xs w-20 text-center"
+                  className="h-7 text-xs w-20 text-center"
                   min="0"
                   max="100"
                   step="0.1"
                 />
                 <span className="text-xs text-muted-foreground whitespace-nowrap">%</span>
               </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleAddSegment(layer.id)}
-                className="h-7 px-2"
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Add
-              </Button>
-              {config.layers.length > 1 && (
+              
+              <div className="flex items-center gap-1">
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => handleDeleteLayer(layer.id)}
-                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                  title="刪除此層級"
+                  onClick={() => handleAddSegment(layer.id)}
+                  className="h-7 px-2"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add
                 </Button>
-              )}
+                {config.layers.length > 1 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeleteLayer(layer.id)}
+                    className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                    title="刪除此層級"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
