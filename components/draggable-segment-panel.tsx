@@ -322,7 +322,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
                   e.stopPropagation()
                   handleDrop(layer.id, segIndex)
                 }}
-                className="p-2 bg-muted/50 rounded border border-border hover:border-primary/50 cursor-move transition-colors"
+                className="p-2 bg-muted/50 rounded border border-border cursor-move"
               >
                 <div className="flex items-start gap-2">
                   <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
