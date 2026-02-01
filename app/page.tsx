@@ -36,6 +36,7 @@ export default function TriangleBuilderPage() {
   const svgRef = useRef<SVGSVGElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
+  const isResizingRef = useRef(false)
 
   // Clear label positions when layers change to prevent misalignment
   useEffect(() => {
@@ -84,33 +85,33 @@ export default function TriangleBuilderPage() {
     fileInputRef.current?.click()
   }, [])
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsResizing(true)
-    e.preventDefault()
-  }
-
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return
+    if (!isResizingRef.current) return
     const newWidth = e.clientX
     if (newWidth >= 300 && newWidth <= 600) {
       setSidebarWidth(newWidth)
     }
-  }, [isResizing])
+  }, [])
 
   const handleMouseUp = useCallback(() => {
+    isResizingRef.current = false
     setIsResizing(false)
   }, [])
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isResizingRef.current = true
+    setIsResizing(true)
+    e.preventDefault()
+  }
+
   useEffect(() => {
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isResizing, handleMouseMove, handleMouseUp])
+  }, [handleMouseMove, handleMouseUp])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
