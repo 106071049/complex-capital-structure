@@ -394,6 +394,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
                   </div>
                 </div>
               </div>
+            )
             })
 
             {layer.segments.length === 0 && (
