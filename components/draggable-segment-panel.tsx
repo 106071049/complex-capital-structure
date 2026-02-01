@@ -270,11 +270,11 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
           }}
         >
           <div className="flex items-center justify-between mb-3 gap-2">
-            <div className="flex items-center gap-2 flex-1">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
               <Input
                 value={layer.name}
                 onChange={(e) => handleUpdateLayerName(layer.id, e.target.value)}
-                className="h-8 text-sm font-semibold flex-1 text-center"
+                className="h-8 text-sm font-semibold flex-1 min-w-[180px] text-center"
                 placeholder="層級名稱"
               />
               <div className="flex items-center gap-1 flex-shrink-0">
@@ -282,7 +282,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
                   type="number"
                   value={(layer.percent || 0).toFixed(1)}
                   onChange={(e) => handleUpdateLayerPercent(layer.id, parseFloat(e.target.value) || 0)}
-                  className="h-8 text-xs w-16 text-center"
+                  className="h-8 text-xs w-20 text-center"
                   min="0"
                   max="100"
                   step="0.1"
