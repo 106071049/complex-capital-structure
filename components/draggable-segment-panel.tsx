@@ -28,6 +28,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
     segmentId: string
     segmentIndex: number
   } | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   const handleAddLayer = () => {
     // Collect all colors currently in use
@@ -105,6 +106,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
 
   const handleDragStart = (layerId: string, segmentId: string, segmentIndex: number) => {
     setDraggedItem({ layerId, segmentId, segmentIndex })
+    setIsDragging(true)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -135,6 +137,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
 
     onChange({ ...config, layers: newLayers })
     setDraggedItem(null)
+    setIsDragging(false)
   }
 
   const handleDeleteSegment = (layerId: string, segmentIndex: number) => {
@@ -312,7 +315,9 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
           </div>
 
           <div className="space-y-2">
-            {layer.segments.map((segment, segIndex) => (
+            {layer.segments.map((segment, segIndex) => {
+              const isBeingDragged = draggedItem?.segmentId === segment.id
+              return (
               <div
                 key={segment.id}
                 onDragOver={handleDragOver}
@@ -320,13 +325,18 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
                   e.stopPropagation()
                   handleDrop(layer.id, segIndex)
                 }}
-                className="p-2 bg-muted/50 rounded border border-border"
+                className={`p-2 bg-muted/50 rounded border border-border transition-all duration-200 ${
+                  isBeingDragged ? 'opacity-50 scale-95 shadow-lg' : 'opacity-100 scale-100'
+                } ${
+                  isDragging && !isBeingDragged ? 'border-dashed border-primary/30' : ''
+                }`}
               >
                 <div className="flex items-start gap-2">
                   <div
                     draggable
                     onDragStart={() => handleDragStart(layer.id, segment.id, segIndex)}
-                    className="cursor-move flex-shrink-0"
+                    onDragEnd={() => setIsDragging(false)}
+                    className="cursor-move flex-shrink-0 hover:scale-110 transition-transform active:scale-95"
                   >
                     <GripVertical className="h-4 w-4 text-muted-foreground mt-1" />
                   </div>
@@ -381,7 +391,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
                   </div>
                 </div>
               </div>
-            ))}
+            )})
 
             {layer.segments.length === 0 && (
               <div className="text-xs text-muted-foreground text-center py-4 border-2 border-dashed border-border rounded">
