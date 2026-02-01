@@ -208,7 +208,7 @@ export default function TriangleBuilderPage() {
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Control Panel */}
-        <aside className="w-96 border-r border-border bg-card overflow-hidden flex flex-col">
+        <aside className="w-[420px] border-r border-border bg-card overflow-hidden flex flex-col">
           <div className="border-b border-border">
             <div className="flex">
               <button
