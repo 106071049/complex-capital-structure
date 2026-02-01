@@ -394,7 +394,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
                   </div>
                 </div>
               </div>
-            )})
+            })
 
             {layer.segments.length === 0 && (
               <div className="text-xs text-muted-foreground text-center py-4 border-2 border-dashed border-border rounded">
