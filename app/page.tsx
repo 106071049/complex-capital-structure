@@ -285,7 +285,7 @@ export default function TriangleBuilderPage() {
           >
             {/* Visual handle indicator */}
             <div className={`absolute top-1/2 right-0 -translate-y-1/2 w-1 h-20 bg-primary/40 rounded-l transition-all ${
-              isResizing ? 'scale-110 bg-primary' : 'group-hover:scale-110 group-hover:bg-primary/60'
+              isResizing ? 'opacity-100 scale-110 bg-primary' : 'opacity-0 group-hover:opacity-100 group-hover:scale-110 group-hover:bg-primary/60'
             }`}>
               {/* Grip dots */}
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
