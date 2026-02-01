@@ -332,7 +332,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
                     <Input
                       value={segment.label}
                       onChange={(e) => handleUpdateSegment(layer.id, segIndex, 'label', e.target.value)}
-                      className="h-8 text-xs w-full"
+                      className="h-8 text-xs w-full hover:border-border"
                       placeholder="輸入金融商品名稱..."
                     />
                     
@@ -349,7 +349,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
                           type="number"
                           value={segment.percent.toFixed(1)}
                           onChange={(e) => handleUpdateSegment(layer.id, segIndex, 'percent', parseFloat(e.target.value) || 0)}
-                          className="h-7 text-xs"
+                          className="h-7 text-xs hover:border-border"
                           min="0"
                           max="100"
                           step="0.1"
@@ -361,7 +361,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
                         type="color"
                         value={segment.color}
                         onChange={(e) => handleUpdateSegment(layer.id, segIndex, 'color', e.target.value)}
-                        className="w-10 h-7 p-1 cursor-pointer flex-shrink-0"
+                        className="w-10 h-7 p-1 cursor-pointer flex-shrink-0 hover:border-border"
                       />
 
                       <Button
