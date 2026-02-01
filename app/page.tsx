@@ -169,11 +169,11 @@ export default function TriangleBuilderPage() {
             </svg>
           </div>
           <div>
-            <h1 className="text-base font-semibold text-foreground">
+            <h1 className="text-lg font-semibold text-foreground">
               複雜資本結構
             </h1>
             <p className="text-xs text-muted-foreground">
-              Create and export allocation diagrams
+              協助釐清複雜的股權結構
             </p>
           </div>
         </div>
