@@ -33,6 +33,7 @@ export default function TriangleBuilderPage() {
   const [zoom, setZoom] = useState(1.0)
   const [activeTab, setActiveTab] = useState<'settings' | 'segments'>('segments')
   const [labelPositions, setLabelPositions] = useState<Record<string, { x: number; y: number }>>({})
+  const [nodeValuePositions, setNodeValuePositions] = useState<Record<string, { x: number; y: number }>>({})
   const svgRef = useRef<SVGSVGElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
@@ -335,6 +336,8 @@ export default function TriangleBuilderPage() {
                   config={config} 
                   labelPositions={labelPositions}
                   onLabelPositionChange={setLabelPositions}
+                  nodeValuePositions={nodeValuePositions}
+                  onNodeValuePositionChange={setNodeValuePositions}
                   onChange={setConfig}
                 />
               </div>

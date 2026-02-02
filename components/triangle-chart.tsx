@@ -9,15 +9,18 @@ interface TriangleChartProps {
   scale?: number
   labelPositions?: Record<string, { x: number; y: number }>
   onLabelPositionChange?: (positions: Record<string, { x: number; y: number }>) => void
+  nodeValuePositions?: Record<string, { x: number; y: number }>
+  onNodeValuePositionChange?: (positions: Record<string, { x: number; y: number }>) => void
   onChange?: (config: ChartConfig) => void
 }
 
 export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
-  function TriangleChart({ config, scale = 1, labelPositions = {}, onLabelPositionChange, onChange }, ref) {
+  function TriangleChart({ config, scale = 1, labelPositions = {}, onLabelPositionChange, nodeValuePositions = {}, onNodeValuePositionChange, onChange }, ref) {
     const [draggedLabel, setDraggedLabel] = useState<string | null>(null)
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
     const [hoveredSegment, setHoveredSegment] = useState<string | null>(null)
     const [hoveredNode, setHoveredNode] = useState<string | null>(null)
+    const [draggedNodeValue, setDraggedNodeValue] = useState<string | null>(null)
     const [editingNode, setEditingNode] = useState<string | null>(null)
     const [editingValue, setEditingValue] = useState<string>('')
     const [isPanning, setIsPanning] = useState(false)
@@ -566,6 +569,22 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                 }
               })
             }
+          } else if (draggedNodeValue) {
+            const svg = e.currentTarget
+            const pt = svg.createSVGPoint()
+            pt.x = e.clientX
+            pt.y = e.clientY
+            const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse())
+            
+            if (onNodeValuePositionChange) {
+              onNodeValuePositionChange({
+                ...nodeValuePositions,
+                [draggedNodeValue]: {
+                  x: svgP.x - dragOffset.x,
+                  y: svgP.y - dragOffset.y
+                }
+              })
+            }
           } else if (isPanning) {
             const svg = e.currentTarget
             const pt = svg.createSVGPoint()
@@ -580,10 +599,12 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
         }}
         onMouseUp={() => {
           setDraggedLabel(null)
+          setDraggedNodeValue(null)
           setIsPanning(false)
         }}
         onMouseLeave={() => {
           setDraggedLabel(null)
+          setDraggedNodeValue(null)
           setIsPanning(false)
         }}
       >
@@ -770,9 +791,62 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                   )}
                   
                   {/* Value display or input */}
-                  {isEditing ? (
+                  {hasValue && !isEditing && (() => {
+                    const valueId = `value-${layerData.layer.id}`
+                    const defaultPos = { x: nodeX - 80, y: nodeY }
+                    const valuePos = nodeValuePositions[valueId] || defaultPos
+                    
+                    return (
+                      <>
+                        {/* Dashed line connecting node to value */}
+                        <line
+                          x1={nodeX}
+                          y1={nodeY}
+                          x2={valuePos.x + 60}
+                          y2={valuePos.y}
+                          stroke="#999999"
+                          strokeWidth={1}
+                          strokeDasharray="3,3"
+                          style={{ pointerEvents: 'none' }}
+                        />
+                        
+                        {/* Draggable value text */}
+                        <text
+                          x={valuePos.x}
+                          y={valuePos.y}
+                          dominantBaseline="middle"
+                          style={{
+                            fontSize: fontSize * 0.85,
+                            fontFamily: fontFamily,
+                            fill: '#000000',
+                            fontWeight: 500,
+                            cursor: 'move'
+                          }}
+                          onMouseDown={(e) => {
+                            const svg = e.currentTarget.ownerSVGElement
+                            if (!svg) return
+                            
+                            const pt = svg.createSVGPoint()
+                            pt.x = e.clientX
+                            pt.y = e.clientY
+                            const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse())
+                            
+                            setDraggedNodeValue(valueId)
+                            setDragOffset({
+                              x: svgP.x - valuePos.x,
+                              y: svgP.y - valuePos.y
+                            })
+                          }}
+                        >
+                          {formatNumber(layerData.layer.value!)}
+                        </text>
+                      </>
+                    )
+                  })()}
+                  
+                  {isEditing && (
                     <foreignObject
-                      x={nodeX + 15}
+                      x={nodeX - 140}
                       y={nodeY - 12}
                       width={120}
                       height={30}
@@ -808,21 +882,6 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                         }}
                       />
                     </foreignObject>
-                  ) : hasValue && (
-                    <text
-                      x={nodeX + 15}
-                      y={nodeY}
-                      dominantBaseline="middle"
-                      style={{
-                        fontSize: fontSize * 0.85,
-                        fontFamily: fontFamily,
-                        fill: '#000000',
-                        fontWeight: 500,
-                        pointerEvents: 'none'
-                      }}
-                    >
-                      {formatNumber(layerData.layer.value!)}
-                    </text>
                   )}
                 </g>
               )
