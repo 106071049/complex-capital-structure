@@ -1,6 +1,7 @@
 "use client"
 
 import { forwardRef, useMemo, useState } from "react"
+import { toast } from "sonner"
 import type { ChartConfig } from "@/lib/chart-types"
 import { JSX } from "react" // Import JSX to fix the undeclared variable error
 
@@ -117,7 +118,10 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
       if (layerIndex > 0) {
         const upperLayer = layers[layerIndex - 1]
         if (upperLayer.value !== undefined && numericValue > upperLayer.value) {
-          alert(`此節點的數值 (${formatNumber(numericValue)}) 不能大於上方節點的數值 (${formatNumber(upperLayer.value)})`)
+          toast.error('數值驗證失敗', {
+            description: `此節點的數值 (${formatNumber(numericValue)}) 不能大於上方節點的數值 (${formatNumber(upperLayer.value)})`,
+            duration: 4000,
+          })
           setEditingNode(null)
           setEditingValue('')
           return
@@ -128,7 +132,10 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
       if (layerIndex < layers.length - 1) {
         const lowerLayer = layers[layerIndex + 1]
         if (lowerLayer.value !== undefined && numericValue < lowerLayer.value) {
-          alert(`此節點的數值 (${formatNumber(numericValue)}) 不能小於下方節點的數值 (${formatNumber(lowerLayer.value)})`)
+          toast.error('數值驗證失敗', {
+            description: `此節點的數值 (${formatNumber(numericValue)}) 不能小於下方節點的數值 (${formatNumber(lowerLayer.value)})`,
+            duration: 4000,
+          })
           setEditingNode(null)
           setEditingValue('')
           return
