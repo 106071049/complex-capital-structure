@@ -111,6 +111,17 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
       
       const numericValue = parseFormattedNumber(value)
       
+      // Validate: value cannot be negative
+      if (numericValue < 0) {
+        toast.error('數值驗證失敗', {
+          description: `輸入值 (${formatNumber(numericValue)}) 不能小於 0`,
+          duration: 4000,
+        })
+        setEditingNode(null)
+        setEditingValue('')
+        return
+      }
+      
       // Find the layer index
       const layerIndex = layers.findIndex(layer => layer.id === layerId)
       
