@@ -10,6 +10,7 @@ export interface Layer {
   name: string
   height: number
   percent?: number // Percentage of total triangle area (optional for backward compatibility)
+  value?: number // Value at this layer's node (optional)
   segments: Segment[]
 }
 

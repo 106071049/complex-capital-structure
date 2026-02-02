@@ -9,14 +9,17 @@ interface TriangleChartProps {
   scale?: number
   labelPositions?: Record<string, { x: number; y: number }>
   onLabelPositionChange?: (positions: Record<string, { x: number; y: number }>) => void
+  onChange?: (config: ChartConfig) => void
 }
 
 export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
-  function TriangleChart({ config, scale = 1, labelPositions = {}, onLabelPositionChange }, ref) {
+  function TriangleChart({ config, scale = 1, labelPositions = {}, onLabelPositionChange, onChange }, ref) {
     const [draggedLabel, setDraggedLabel] = useState<string | null>(null)
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
     const [hoveredSegment, setHoveredSegment] = useState<string | null>(null)
     const [hoveredNode, setHoveredNode] = useState<string | null>(null)
+    const [editingNode, setEditingNode] = useState<string | null>(null)
+    const [editingValue, setEditingValue] = useState<string>('')
     const [isPanning, setIsPanning] = useState(false)
     const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
     const [panStart, setPanStart] = useState({ x: 0, y: 0 })
@@ -80,6 +83,40 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
       const { startX, startY, endX, endY } = geometry
       const t = (y - startY) / (endY - startY)
       return startX + t * (endX - startX)
+    }
+
+    // Format number with thousand separators
+    const formatNumber = (num: number): string => {
+      return num.toLocaleString('en-US')
+    }
+
+    // Parse formatted number string to number
+    const parseFormattedNumber = (str: string): number => {
+      return parseFloat(str.replace(/,/g, '')) || 0
+    }
+
+    // Handle node click to start editing
+    const handleNodeClick = (layerId: string, currentValue?: number) => {
+      setEditingNode(layerId)
+      setEditingValue(currentValue ? formatNumber(currentValue) : '')
+    }
+
+    // Handle value update
+    const handleValueUpdate = (layerId: string, value: string) => {
+      if (!onChange) return
+      
+      const numericValue = parseFormattedNumber(value)
+      const updatedLayers = layers.map(layer => 
+        layer.id === layerId ? { ...layer, value: numericValue } : layer
+      )
+      
+      onChange({
+        ...config,
+        layers: updatedLayers
+      })
+      
+      setEditingNode(null)
+      setEditingValue('')
     }
 
     // Render a layer with its segments
@@ -686,6 +723,8 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
               const nodeX = getLeftEdgeX(nodeY)
               const nodeId = `node-${layerData.layer.id}`
               const isHovered = hoveredNode === nodeId
+              const isEditing = editingNode === layerData.layer.id
+              const hasValue = layerData.layer.value !== undefined && layerData.layer.value !== null
               
               return (
                 <g key={nodeId}>
@@ -698,6 +737,7 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                     style={{ cursor: 'pointer' }}
                     onMouseEnter={() => setHoveredNode(nodeId)}
                     onMouseLeave={() => setHoveredNode(null)}
+                    onClick={() => handleNodeClick(layerData.layer.id, layerData.layer.value)}
                   />
                   {/* Visible circle */}
                   <circle
@@ -727,6 +767,62 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                         pointerEvents: 'none'
                       }}
                     />
+                  )}
+                  
+                  {/* Value display or input */}
+                  {isEditing ? (
+                    <foreignObject
+                      x={nodeX + 15}
+                      y={nodeY - 12}
+                      width={120}
+                      height={30}
+                    >
+                      <input
+                        type="text"
+                        value={editingValue}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9,]/g, '')
+                          setEditingValue(value)
+                        }}
+                        onBlur={() => handleValueUpdate(layerData.layer.id, editingValue)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleValueUpdate(layerData.layer.id, editingValue)
+                          } else if (e.key === 'Escape') {
+                            setEditingNode(null)
+                            setEditingValue('')
+                          }
+                        }}
+                        autoFocus
+                        style={{
+                          width: '100%',
+                          height: '24px',
+                          padding: '2px 6px',
+                          fontSize: `${fontSize * 0.85}px`,
+                          fontFamily: fontFamily,
+                          border: '2px solid #3b82f6',
+                          borderRadius: '4px',
+                          outline: 'none',
+                          backgroundColor: '#ffffff',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                      />
+                    </foreignObject>
+                  ) : hasValue && (
+                    <text
+                      x={nodeX + 15}
+                      y={nodeY}
+                      dominantBaseline="middle"
+                      style={{
+                        fontSize: fontSize * 0.85,
+                        fontFamily: fontFamily,
+                        fill: '#000000',
+                        fontWeight: 500,
+                        pointerEvents: 'none'
+                      }}
+                    >
+                      {formatNumber(layerData.layer.value!)}
+                    </text>
                   )}
                 </g>
               )

@@ -335,6 +335,7 @@ export default function TriangleBuilderPage() {
                   config={config} 
                   labelPositions={labelPositions}
                   onLabelPositionChange={setLabelPositions}
+                  onChange={setConfig}
                 />
               </div>
             </div>
