@@ -16,6 +16,7 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
     const [draggedLabel, setDraggedLabel] = useState<string | null>(null)
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
     const [hoveredSegment, setHoveredSegment] = useState<string | null>(null)
+    const [hoveredNode, setHoveredNode] = useState<string | null>(null)
     const [isPanning, setIsPanning] = useState(false)
     const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
     const [panStart, setPanStart] = useState({ x: 0, y: 0 })
@@ -676,6 +677,60 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
               stroke="#000000"
               strokeWidth={fan.outerStrokeWidth}
             />
+
+            {/* Layer nodes - interactive circles at left edge intersections */}
+            {geometry.layerBoundaries.map((layerData, index) => {
+              if (index === geometry.layerBoundaries.length - 1) return null // Skip last layer (bottom)
+              
+              const nodeY = layerData.bottom
+              const nodeX = getLeftEdgeX(nodeY)
+              const nodeId = `node-${layerData.layer.id}`
+              const isHovered = hoveredNode === nodeId
+              
+              return (
+                <g key={nodeId}>
+                  {/* Invisible larger hit area for easier hovering */}
+                  <circle
+                    cx={nodeX}
+                    cy={nodeY}
+                    r={12}
+                    fill="transparent"
+                    style={{ cursor: 'pointer' }}
+                    onMouseEnter={() => setHoveredNode(nodeId)}
+                    onMouseLeave={() => setHoveredNode(null)}
+                  />
+                  {/* Visible circle */}
+                  <circle
+                    cx={nodeX}
+                    cy={nodeY}
+                    r={isHovered ? 6 : 4}
+                    fill={isHovered ? '#3b82f6' : '#ffffff'}
+                    stroke={isHovered ? '#2563eb' : '#000000'}
+                    strokeWidth={isHovered ? 2.5 : 1.5}
+                    style={{
+                      transition: 'all 0.2s ease',
+                      pointerEvents: 'none'
+                    }}
+                  />
+                  {/* Outer ring on hover */}
+                  {isHovered && (
+                    <circle
+                      cx={nodeX}
+                      cy={nodeY}
+                      r={9}
+                      fill="none"
+                      stroke="#3b82f6"
+                      strokeWidth={1.5}
+                      opacity={0.5}
+                      style={{
+                        animation: 'pulse 1.5s ease-in-out infinite',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  )}
+                </g>
+              )
+            })}
           </g>
         )}
 
