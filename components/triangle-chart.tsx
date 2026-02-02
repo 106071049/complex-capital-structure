@@ -656,7 +656,7 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
         <rect 
           width={canvas.width} 
           height={canvas.height} 
-          fill="#ffffff"
+          fill="transparent"
           style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
           onMouseDown={(e) => {
             const svg = e.currentTarget.ownerSVGElement

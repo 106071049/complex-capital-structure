@@ -101,17 +101,9 @@ export async function exportToPNG(
       canvas.height = img.height * scale
       ctx.scale(scale, scale)
       
-      // White background
-      ctx.fillStyle = "#ffffff"
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      
-      // Draw the image
+      // Transparent background (no fill)
+      // Draw the image directly without background
       ctx.drawImage(img, 0, 0)
-      
-      // Add black border
-      ctx.strokeStyle = "#000000"
-      ctx.lineWidth = 2
-      ctx.strokeRect(0, 0, img.width, img.height)
       
       canvas.toBlob((blob) => {
         if (blob) {
