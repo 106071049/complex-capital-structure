@@ -29,6 +29,7 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
     segmentIndex: number
   } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [editingPercent, setEditingPercent] = useState<{ [key: string]: string }>({})
 
   const handleAddLayer = () => {
     // Collect all colors currently in use
@@ -364,8 +365,27 @@ export function DraggableSegmentPanel({ config, onChange }: DraggableSegmentPane
                       <div className="flex items-center gap-1 flex-1">
                         <Input
                           type="number"
-                          value={segment.percent.toFixed(1)}
-                          onChange={(e) => handleUpdateSegment(layer.id, segIndex, 'percent', parseFloat(e.target.value) || 0)}
+                          value={editingPercent[`${layer.id}-${segment.id}`] ?? segment.percent.toFixed(1)}
+                          onChange={(e) => {
+                            setEditingPercent({
+                              ...editingPercent,
+                              [`${layer.id}-${segment.id}`]: e.target.value
+                            })
+                          }}
+                          onBlur={(e) => {
+                            const value = parseFloat(e.target.value)
+                            if (!isNaN(value)) {
+                              handleUpdateSegment(layer.id, segIndex, 'percent', value)
+                            }
+                            const newEditingPercent = { ...editingPercent }
+                            delete newEditingPercent[`${layer.id}-${segment.id}`]
+                            setEditingPercent(newEditingPercent)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.currentTarget.blur()
+                            }
+                          }}
                           className="h-7 text-xs hover:border-border"
                           min="0"
                           max="100"
