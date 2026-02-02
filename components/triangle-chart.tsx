@@ -109,6 +109,32 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
       if (!onChange) return
       
       const numericValue = parseFormattedNumber(value)
+      
+      // Find the layer index
+      const layerIndex = layers.findIndex(layer => layer.id === layerId)
+      
+      // Validate: bottom layer cannot be greater than top layer
+      if (layerIndex > 0) {
+        const upperLayer = layers[layerIndex - 1]
+        if (upperLayer.value !== undefined && numericValue > upperLayer.value) {
+          alert(`此節點的數值 (${formatNumber(numericValue)}) 不能大於上方節點的數值 (${formatNumber(upperLayer.value)})`)
+          setEditingNode(null)
+          setEditingValue('')
+          return
+        }
+      }
+      
+      // Validate: top layer cannot be less than bottom layer
+      if (layerIndex < layers.length - 1) {
+        const lowerLayer = layers[layerIndex + 1]
+        if (lowerLayer.value !== undefined && numericValue < lowerLayer.value) {
+          alert(`此節點的數值 (${formatNumber(numericValue)}) 不能小於下方節點的數值 (${formatNumber(lowerLayer.value)})`)
+          setEditingNode(null)
+          setEditingValue('')
+          return
+        }
+      }
+      
       const updatedLayers = layers.map(layer => 
         layer.id === layerId ? { ...layer, value: numericValue } : layer
       )
@@ -793,35 +819,33 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                   {/* Value display or input */}
                   {hasValue && !isEditing && (() => {
                     const valueId = `value-${layerData.layer.id}`
-                    const defaultPos = { x: nodeX - 80, y: nodeY }
+                    const defaultPos = { x: nodeX - 100, y: nodeY }
                     const valuePos = nodeValuePositions[valueId] || defaultPos
+                    const formattedValue = formatNumber(layerData.layer.value!)
+                    
+                    // Calculate box dimensions based on text length
+                    const textWidth = formattedValue.length * (fontSize * 0.5)
+                    const boxWidth = textWidth + 16
+                    const boxHeight = fontSize * 1.5
+                    const boxX = valuePos.x
+                    const boxY = valuePos.y - boxHeight / 2
                     
                     return (
                       <>
-                        {/* Dashed line connecting node to value */}
+                        {/* Solid line connecting node to value box */}
                         <line
                           x1={nodeX}
                           y1={nodeY}
-                          x2={valuePos.x + 60}
+                          x2={boxX + boxWidth}
                           y2={valuePos.y}
-                          stroke="#999999"
-                          strokeWidth={1}
-                          strokeDasharray="3,3"
+                          stroke="#666666"
+                          strokeWidth={1.5}
                           style={{ pointerEvents: 'none' }}
                         />
                         
-                        {/* Draggable value text */}
-                        <text
-                          x={valuePos.x}
-                          y={valuePos.y}
-                          dominantBaseline="middle"
-                          style={{
-                            fontSize: fontSize * 0.85,
-                            fontFamily: fontFamily,
-                            fill: '#000000',
-                            fontWeight: 500,
-                            cursor: 'move'
-                          }}
+                        {/* Draggable value box */}
+                        <g
+                          style={{ cursor: 'move' }}
                           onMouseDown={(e) => {
                             const svg = e.currentTarget.ownerSVGElement
                             if (!svg) return
@@ -838,8 +862,35 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                             })
                           }}
                         >
-                          {formatNumber(layerData.layer.value!)}
-                        </text>
+                          {/* Box background and border */}
+                          <rect
+                            x={boxX}
+                            y={boxY}
+                            width={boxWidth}
+                            height={boxHeight}
+                            fill="#ffffff"
+                            stroke="#333333"
+                            strokeWidth={1.5}
+                            rx={3}
+                          />
+                          
+                          {/* Value text */}
+                          <text
+                            x={boxX + boxWidth / 2}
+                            y={valuePos.y}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            style={{
+                              fontSize: fontSize * 0.85,
+                              fontFamily: fontFamily,
+                              fill: '#000000',
+                              fontWeight: 500,
+                              pointerEvents: 'none'
+                            }}
+                          >
+                            {formattedValue}
+                          </text>
+                        </g>
                       </>
                     )
                   })()}
