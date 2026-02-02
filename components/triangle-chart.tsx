@@ -19,7 +19,9 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
     const [isPanning, setIsPanning] = useState(false)
     const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
     const [panStart, setPanStart] = useState({ x: 0, y: 0 })
-    const { canvas, axes, fan, layers, legend, showNotToScale } = config
+    const { canvas, axes, fan, layers, legend, showNotToScale, typography } = config
+    const fontSize = typography?.fontSize ?? 14
+    const fontFamily = typography?.fontFamily ?? "Arial, sans-serif"
 
     const scaledWidth = canvas.width * scale
     const scaledHeight = canvas.height * scale
@@ -401,14 +403,15 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                   y={labelY}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  className="fill-foreground text-[11px] font-medium"
+                  className="fill-foreground font-medium"
                   style={{ 
-                    fontSize: Math.max(9, Math.min(12, (bottom - top) / 4)),
+                    fontSize: Math.max(9, Math.min(fontSize * 0.85, (bottom - top) / 4)),
+                    fontFamily: fontFamily,
                     fontWeight: isHovered ? 600 : 500
                   }}
                 >
                   {segment.label}
-                  <tspan x={labelX} dy="1.2em" className="text-[10px]">
+                  <tspan x={labelX} dy="1.2em" style={{ fontSize: fontSize * 0.7, fontFamily: fontFamily }}>
                     {segment.percent.toFixed(1)}%
                   </tspan>
                 </text>
@@ -473,7 +476,8 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
             key={`legend-title-${layer.id}`}
             x={legendX}
             y={legendY}
-            className="fill-foreground text-[11px] font-semibold"
+            className="fill-foreground font-semibold"
+            style={{ fontSize: fontSize * 0.85, fontFamily: fontFamily }}
           >
             {layer.name}
           </text>
@@ -484,7 +488,7 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
           items.push(
             <g key={`legend-${layer.id}-${segment.id}`}>
               <rect x={legendX} y={legendY - 10} width={12} height={12} fill={segment.color} rx={2} />
-              <text x={legendX + 18} y={legendY} className="fill-muted-foreground text-[10px]">
+              <text x={legendX + 18} y={legendY} className="fill-muted-foreground" style={{ fontSize: fontSize * 0.75, fontFamily: fontFamily }}>
                 {segment.label}: {segment.percent.toFixed(1)}%
               </text>
             </g>
@@ -586,7 +590,8 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                   y={(geometry.startY + geometry.endY) / 2}
                   textAnchor="middle"
                   fill="#666666"
-                  fontSize="14"
+                  fontSize={fontSize}
+                  fontFamily={fontFamily}
                   fontWeight="500"
                   transform={`rotate(-90, ${geometry.startX - 15}, ${(geometry.startY + geometry.endY) / 2})`}
                 >
@@ -612,7 +617,8 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                   y={geometry.startY + 25}
                   textAnchor="middle"
                   fill="#666666"
-                  fontSize="14"
+                  fontSize={fontSize}
+                  fontFamily={fontFamily}
                   fontWeight="500"
                 >
                   Proceeds

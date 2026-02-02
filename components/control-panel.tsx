@@ -63,6 +63,16 @@ export function ControlPanel({ config, onChange }: ControlPanelProps) {
     })
   }
 
+  const updateTypography = <K extends keyof ChartConfig["typography"]>(
+    key: K,
+    value: ChartConfig["typography"][K]
+  ) => {
+    onChange({
+      ...config,
+      typography: { ...config.typography, [key]: value },
+    })
+  }
+
   const addLayer = () => {
     const newLayer: Layer = {
       id: generateId(),
@@ -218,6 +228,38 @@ export function ControlPanel({ config, onChange }: ControlPanelProps) {
                 checked={config.showNotToScale}
                 onCheckedChange={(v) => onChange({ ...config, showNotToScale: v })}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Font Size</Label>
+              <Input
+                type="number"
+                min={8}
+                max={32}
+                value={config.typography?.fontSize ?? 14}
+                onChange={(e) => updateTypography("fontSize", Number(e.target.value))}
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Font Family</Label>
+              <select
+                value={config.typography?.fontFamily ?? "Arial, sans-serif"}
+                onChange={(e) => updateTypography("fontFamily", e.target.value)}
+                className="h-8 text-sm w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Courier New', monospace">Courier New</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="Verdana, sans-serif">Verdana</option>
+                <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                <option value="Impact, sans-serif">Impact</option>
+                <option value="'Noto Sans TC', sans-serif">Noto Sans TC (中文)</option>
+                <option value="'Microsoft JhengHei', sans-serif">微軟正黑體</option>
+              </select>
             </div>
           </AccordionContent>
         </AccordionItem>

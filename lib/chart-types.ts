@@ -43,6 +43,10 @@ export interface ChartConfig {
     position: "right" | "bottom"
   }
   showNotToScale: boolean
+  typography: {
+    fontSize: number
+    fontFamily: string
+  }
 }
 
 export const defaultChartConfig: ChartConfig = {
@@ -92,6 +96,10 @@ export const defaultChartConfig: ChartConfig = {
   ],
   legend: { enabled: true, position: "right" },
   showNotToScale: true,
+  typography: {
+    fontSize: 14,
+    fontFamily: "Arial, sans-serif",
+  },
 }
 
 export function generateId(): string {
