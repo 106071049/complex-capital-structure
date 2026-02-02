@@ -879,6 +879,9 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                               y: svgP.y - valuePos.y
                             })
                           }}
+                          onDoubleClick={() => {
+                            handleNodeClick(layerData.layer.id, layerData.layer.value)
+                          }}
                         >
                           {/* Box background and border */}
                           <rect
