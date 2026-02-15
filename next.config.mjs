@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   basePath: '/complex-capital',
-  assetPrefix: '/complex-capital',
   typescript: {
     ignoreBuildErrors: true,
   },
