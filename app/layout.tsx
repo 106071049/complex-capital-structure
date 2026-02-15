@@ -15,23 +15,23 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/favicon.ico',
+        url: '/complex-capital/favicon.ico',
         sizes: 'any',
       },
       {
-        url: '/icon-light-32x32.png',
+        url: '/complex-capital/icon-light-32x32.png',
         sizes: '32x32',
         type: 'image/png',
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/icon-dark-32x32.png',
+        url: '/complex-capital/icon-dark-32x32.png',
         sizes: '32x32',
         type: 'image/png',
         media: '(prefers-color-scheme: dark)',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: '/complex-capital/apple-icon.png',
   },
 }
 
