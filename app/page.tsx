@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ControlPanel } from "@/components/control-panel"
 import { DraggableSegmentPanel } from "@/components/draggable-segment-panel"
+import { CalculationFilePanel } from "@/components/calculation-file-panel"
 import { TriangleChart } from "@/components/triangle-chart"
 import type { ChartConfig } from "@/lib/chart-types"
 import { defaultChartConfig } from "@/lib/chart-types"
@@ -27,13 +28,51 @@ import {
 } from "@/lib/export-utils"
 
 export default function TriangleBuilderPage() {
-  const [config, setConfig] = useState<ChartConfig>(defaultChartConfig)
+  // Separate configs for each mode
+  const [precaseConfig, setPrecaseConfig] = useState<ChartConfig>(defaultChartConfig)
+  const [calculationConfig, setCalculationConfig] = useState<ChartConfig>(defaultChartConfig)
+  
+  // Separate label positions for each mode
+  const [precaseLabelPositions, setPrecaseLabelPositions] = useState<Record<string, { x: number; y: number }>>({})
+  const [calculationLabelPositions, setCalculationLabelPositions] = useState<Record<string, { x: number; y: number }>>({})
+  
+  // Separate node value positions for each mode
+  const [precaseNodeValuePositions, setPrecaseNodeValuePositions] = useState<Record<string, { x: number; y: number }>>({})
+  const [calculationNodeValuePositions, setCalculationNodeValuePositions] = useState<Record<string, { x: number; y: number }>>({})
+  
   const [sidebarWidth, setSidebarWidth] = useState(420)
   const [isResizing, setIsResizing] = useState(false)
   const [zoom, setZoom] = useState(1.0)
-  const [activeTab, setActiveTab] = useState<'settings' | 'segments'>('segments')
-  const [labelPositions, setLabelPositions] = useState<Record<string, { x: number; y: number }>>({})
-  const [nodeValuePositions, setNodeValuePositions] = useState<Record<string, { x: number; y: number }>>({})
+  const [activeTab, setActiveTab] = useState<'settings' | 'precase' | 'calculation'>('precase')
+  const [previousMode, setPreviousMode] = useState<'precase' | 'calculation'>('precase')
+  const [showBreakpoints, setShowBreakpoints] = useState(true)
+  
+  // Get current mode's config and setters based on active tab or previous mode
+  const getCurrentMode = () => activeTab === 'settings' ? previousMode : (activeTab === 'precase' || activeTab === 'calculation' ? activeTab : 'precase')
+  const currentMode = getCurrentMode()
+  const config = currentMode === 'precase' ? precaseConfig : calculationConfig
+  const setConfig = currentMode === 'precase' ? setPrecaseConfig : setCalculationConfig
+  const labelPositions = currentMode === 'precase' ? precaseLabelPositions : calculationLabelPositions
+  const setLabelPositions = currentMode === 'precase' ? setPrecaseLabelPositions : setCalculationLabelPositions
+  const nodeValuePositions = currentMode === 'precase' ? precaseNodeValuePositions : calculationNodeValuePositions
+  const setNodeValuePositions = currentMode === 'precase' ? setPrecaseNodeValuePositions : setCalculationNodeValuePositions
+
+  // Handle tab change and track previous mode
+  const handleTabChange = (tab: 'settings' | 'precase' | 'calculation') => {
+    // If switching from precase or calculation to settings, remember the mode
+    if ((activeTab === 'precase' || activeTab === 'calculation') && tab === 'settings') {
+      setPreviousMode(activeTab)
+    }
+    // If switching from settings to a mode, update previous mode
+    if (activeTab === 'settings' && (tab === 'precase' || tab === 'calculation')) {
+      setPreviousMode(tab)
+    }
+    // If switching between precase and calculation, update previous mode
+    if ((activeTab === 'precase' || activeTab === 'calculation') && (tab === 'precase' || tab === 'calculation')) {
+      setPreviousMode(tab)
+    }
+    setActiveTab(tab)
+  }
   const svgRef = useRef<SVGSVGElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
@@ -41,45 +80,77 @@ export default function TriangleBuilderPage() {
 
   // Clear label positions when layers change to prevent misalignment
   useEffect(() => {
-    setLabelPositions({})
-  }, [config.layers.length])
+    setPrecaseLabelPositions({})
+  }, [precaseConfig.layers.length])
+  
+  useEffect(() => {
+    setCalculationLabelPositions({})
+  }, [calculationConfig.layers.length])
+
+  // Check if total layer percentages exceed 100%
+  const checkTotalPercentage = (): boolean => {
+    const totalPercent = config.layers.reduce((sum, layer) => sum + (layer.percent || 0), 0)
+    return totalPercent > 100
+  }
+
+  // Show confirmation dialog if total exceeds 100%
+  const confirmExportIfNeeded = (action: () => void) => {
+    if (checkTotalPercentage()) {
+      const confirmed = window.confirm(
+        "目前各層加總超過100%，請問是否仍然要生成檔案？"
+      )
+      if (confirmed) {
+        action()
+      }
+    } else {
+      action()
+    }
+  }
 
   const handleExportJSON = () => {
-    downloadJSON(config, "allocation-chart-config.json")
+    confirmExportIfNeeded(() => {
+      downloadJSON(config, "allocation-chart-config.json")
+    })
   }
 
   const handleExportSVG = async () => {
-    if (!svgRef.current) return
-    const svgString = await exportToSVG(svgRef.current)
-    downloadSVG(svgString, "allocation-chart.svg")
+    confirmExportIfNeeded(async () => {
+      if (!svgRef.current) return
+      const svgString = await exportToSVG(svgRef.current)
+      downloadSVG(svgString, "allocation-chart.svg")
+    })
   }
 
   const handleExportPNG = async (scale: number) => {
-    if (!svgRef.current) return
-    try {
-      const blob = await exportToPNG(svgRef.current, scale)
-      downloadPNG(blob, `allocation-chart-${scale}x.png`)
-    } catch (error) {
-      console.error("Failed to export PNG:", error)
-    }
+    confirmExportIfNeeded(async () => {
+      if (!svgRef.current) return
+      try {
+        const blob = await exportToPNG(svgRef.current, scale)
+        downloadPNG(blob, `allocation-chart-${scale}x.png`)
+      } catch (error) {
+        console.error("Failed to export PNG:", error)
+      }
+    })
   }
 
   const handleExportPPT = async () => {
-    if (!svgRef.current) return
-    try {
-      const { exportToPPT } = await import("@/lib/export-utils")
-      await exportToPPT(svgRef.current, "allocation-chart.pptx")
-      toast.success("PPT 導出成功", {
-        description: "文件已保存到下載資料夾",
-        duration: 3000,
-      })
-    } catch (error) {
-      console.error("Failed to export PPT:", error)
-      toast.error("導出 PPT 失敗", {
-        description: "請稍後再試",
-        duration: 3000,
-      })
-    }
+    confirmExportIfNeeded(async () => {
+      if (!svgRef.current) return
+      try {
+        const { exportToPPT } = await import("@/lib/export-utils")
+        await exportToPPT(svgRef.current, "allocation-chart.pptx")
+        toast.success("PPT 導出成功", {
+          description: "文件已保存到下載資料夾",
+          duration: 3000,
+        })
+      } catch (error) {
+        console.error("Failed to export PPT:", error)
+        toast.error("導出 PPT 失敗", {
+          description: "請稍後再試",
+          duration: 3000,
+        })
+      }
+    })
   }
 
   const handleImportJSON = useCallback(() => {
@@ -180,6 +251,29 @@ export default function TriangleBuilderPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="text-xs" 
+            onClick={() => {
+              if (currentMode === 'precase') {
+                setPrecaseLabelPositions({})
+              } else {
+                setCalculationLabelPositions({})
+              }
+            }}
+          >
+            文字回到原位
+          </Button>
+          
+          <Button 
+            size="sm" 
+            variant={showBreakpoints ? "outline" : "default"} 
+            className="text-xs" 
+            onClick={() => setShowBreakpoints(!showBreakpoints)}
+          >
+            {showBreakpoints ? "隱藏Breakpoint點" : "顯示Breakpoint點"}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -249,17 +343,27 @@ export default function TriangleBuilderPage() {
           <div className="border-b border-border">
             <div className="flex">
               <button
-                onClick={() => setActiveTab('segments')}
+                onClick={() => handleTabChange('precase')}
                 className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
-                  activeTab === 'segments'
+                  activeTab === 'precase'
                     ? 'bg-background text-foreground border-b-2 border-primary'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Segments
+                案前釐清模式
               </button>
               <button
-                onClick={() => setActiveTab('settings')}
+                onClick={() => handleTabChange('calculation')}
+                className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                  activeTab === 'calculation'
+                    ? 'bg-background text-foreground border-b-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                引入計算檔模式
+              </button>
+              <button
+                onClick={() => handleTabChange('settings')}
                 className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
                   activeTab === 'settings'
                     ? 'bg-background text-foreground border-b-2 border-primary'
@@ -270,8 +374,10 @@ export default function TriangleBuilderPage() {
               </button>
             </div>
           </div>
-          {activeTab === 'segments' ? (
-            <DraggableSegmentPanel config={config} onChange={setConfig} />
+          {activeTab === 'precase' ? (
+            <DraggableSegmentPanel config={precaseConfig} onChange={setPrecaseConfig} />
+          ) : activeTab === 'calculation' ? (
+            <CalculationFilePanel config={calculationConfig} onChange={setCalculationConfig} />
           ) : (
             <ControlPanel config={config} onChange={setConfig} />
           )}
@@ -331,15 +437,20 @@ export default function TriangleBuilderPage() {
                   transformOrigin: "center center",
                 }}
               >
-                <TriangleChart 
-                  ref={svgRef} 
-                  config={config} 
-                  labelPositions={labelPositions}
-                  onLabelPositionChange={setLabelPositions}
-                  nodeValuePositions={nodeValuePositions}
-                  onNodeValuePositionChange={setNodeValuePositions}
-                  onChange={setConfig}
-                />
+                <div className="flex-1 overflow-auto">
+                {(activeTab === 'precase' || activeTab === 'calculation' || activeTab === 'settings') && (
+                  <TriangleChart 
+                    ref={svgRef} 
+                    config={config} 
+                    labelPositions={labelPositions}
+                    onLabelPositionChange={setLabelPositions}
+                    nodeValuePositions={nodeValuePositions}
+                    onNodeValuePositionChange={setNodeValuePositions}
+                    onChange={setConfig}
+                    showBreakpoints={showBreakpoints}
+                  />
+                )}
+                </div>
               </div>
             </div>
             {/* 署名 */}

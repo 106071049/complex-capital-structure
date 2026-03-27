@@ -11,6 +11,7 @@ export interface Layer {
   height: number
   percent?: number // Percentage of total triangle area (optional for backward compatibility)
   value?: number // Value at this layer's node (optional)
+  nodeVisible?: boolean // Whether the node is visible (default: true)
   segments: Segment[]
 }
 
@@ -68,9 +69,9 @@ export const defaultChartConfig: ChartConfig = {
       height: 100,
       percent: 33.3,
       segments: [
-        { id: "s1", label: "Common", percent: 55.6, color: "#22c55e" },
-        { id: "s2", label: "Options", percent: 11.1, color: "#4ade80" },
-        { id: "s3", label: "Preferred A", percent: 33.3, color: "#86efac" },
+        { id: "s1", label: "Common Shares", percent: 55.6, color: "#86efac" },
+        { id: "s2", label: "Options", percent: 11.1, color: "#fdba74" },
+        { id: "s3", label: "Preferred A", percent: 33.3, color: "#bfdbfe" },
       ],
     },
     {
@@ -79,8 +80,8 @@ export const defaultChartConfig: ChartConfig = {
       height: 120,
       percent: 33.3,
       segments: [
-        { id: "s1", label: "Common", percent: 40, color: "#3b82f6" },
-        { id: "s2", label: "Preferred B", percent: 60, color: "#60a5fa" },
+        { id: "s1", label: "Common Shares", percent: 40, color: "#86efac"  },
+        { id: "s2", label: "Preferred B", percent: 60, color: "#fcd34d" },
       ],
     },
     {
@@ -89,9 +90,9 @@ export const defaultChartConfig: ChartConfig = {
       height: 140,
       percent: 33.4,
       segments: [
-        { id: "s1", label: "Common", percent: 25, color: "#f97316" },
-        { id: "s2", label: "Options", percent: 25, color: "#fb923c" },
-        { id: "s3", label: "Preferred C", percent: 50, color: "#fdba74" },
+        { id: "s1", label: "Common Shares", percent: 25, color: "#86efac"  },
+        { id: "s2", label: "Options", percent: 25, color: "#fdba74" },
+        { id: "s3", label: "Preferred C", percent: 50, color: "#fecaca" },
       ],
     },
   ],

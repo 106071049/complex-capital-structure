@@ -13,10 +13,11 @@ interface TriangleChartProps {
   nodeValuePositions?: Record<string, { x: number; y: number }>
   onNodeValuePositionChange?: (positions: Record<string, { x: number; y: number }>) => void
   onChange?: (config: ChartConfig) => void
+  showBreakpoints?: boolean
 }
 
 export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
-  function TriangleChart({ config, scale = 1, labelPositions = {}, onLabelPositionChange, nodeValuePositions = {}, onNodeValuePositionChange, onChange }, ref) {
+  function TriangleChart({ config, scale = 1, labelPositions = {}, onLabelPositionChange, nodeValuePositions = {}, onNodeValuePositionChange, onChange, showBreakpoints = true }, ref) {
     const [draggedLabel, setDraggedLabel] = useState<string | null>(null)
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
     const [hoveredSegment, setHoveredSegment] = useState<string | null>(null)
@@ -94,9 +95,24 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
       return num.toLocaleString('en-US')
     }
 
-    // Parse formatted number string to number
-    const parseFormattedNumber = (str: string): number => {
-      return parseFloat(str.replace(/,/g, '')) || 0
+    // Parse formatted number string to number (handles both "1000" and "50%" formats)
+    const parseFormattedNumber = (str: string, topValue?: number): number => {
+      const trimmed = str.trim()
+      
+      // Check if input is a percentage
+      if (trimmed.includes('%')) {
+        const percentValue = parseFloat(trimmed.replace(/%/g, '').replace(/,/g, ''))
+        if (isNaN(percentValue)) return 0
+        
+        // Convert percentage to actual value based on top layer value
+        if (topValue && topValue > 0) {
+          return (percentValue / 100) * topValue
+        }
+        return 0
+      }
+      
+      // Regular number input
+      return parseFloat(trimmed.replace(/,/g, '')) || 0
     }
 
     // Handle node click to start editing
@@ -109,7 +125,9 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
     const handleValueUpdate = (layerId: string, value: string) => {
       if (!onChange) return
       
-      const numericValue = parseFormattedNumber(value)
+      // Get top layer value for percentage conversion
+      const topLayerValue = geometry.layerBoundaries[0]?.layer.value
+      const numericValue = parseFormattedNumber(value, topLayerValue)
       
       // Validate: value cannot be negative
       if (numericValue < 0) {
@@ -492,11 +510,15 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                   style={{ 
                     fontSize: Math.max(9, Math.min(fontSize * 0.85, (bottom - top) / 4)),
                     fontFamily: fontFamily,
-                    fontWeight: isHovered ? 600 : 500
+                    fontWeight: isHovered ? 600 : 500,
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    MozUserSelect: 'none',
+                    msUserSelect: 'none'
                   }}
                 >
                   {segment.label}
-                  <tspan x={labelX} dy="1.2em" style={{ fontSize: fontSize * 0.7, fontFamily: fontFamily }}>
+                  <tspan x={labelX} dy="1.2em" style={{ fontSize: fontSize * 0.7, fontFamily: fontFamily, userSelect: 'none' }}>
                     {segment.percent.toFixed(1)}%
                   </tspan>
                 </text>
@@ -834,12 +856,29 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                     />
                   )}
                   
-                  {/* Value display or input */}
-                  {hasValue && !isEditing && (() => {
+                  {/* Value display or input - only show if showBreakpoints is true */}
+                  {showBreakpoints && hasValue && !isEditing && (() => {
                     const valueId = `value-${layerData.layer.id}`
                     const defaultPos = { x: nodeX - 100, y: nodeY }
                     const valuePos = nodeValuePositions[valueId] || defaultPos
-                    const formattedValue = formatNumber(layerData.layer.value!)
+                    
+                    // Calculate cumulative percentage from bottom to current layer
+                    // Note: We sum from bottom up to current layer (excluding layer 0 which is 100%)
+                    const currentLayerIndex = index
+                    const totalLayers = geometry.layerBoundaries.length
+                    let cumulativePercent = 0
+                    
+                    // Sum percentages from bottom (last layer) to current layer
+                    // Start from the last layer and go up to current layer
+                    for (let i = totalLayers - 1; i > currentLayerIndex; i--) {
+                      const layer = config.layers[i]
+                      cumulativePercent += layer.percent || 0
+                    }
+                    
+                    // Format display: if value is 0, only show percentage; otherwise show "value percentage%"
+                    const formattedValue = layerData.layer.value === 0 
+                      ? `${cumulativePercent.toFixed(1)}%`
+                      : `${formatNumber(layerData.layer.value!)} ${cumulativePercent.toFixed(1)}%`
                     
                     // Calculate box dimensions based on text length
                     const textWidth = formattedValue.length * (fontSize * 0.5)
@@ -927,7 +966,8 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                         type="text"
                         value={editingValue}
                         onChange={(e) => {
-                          const value = e.target.value.replace(/[^0-9,]/g, '')
+                          // Allow numbers, commas, and percentage sign
+                          const value = e.target.value.replace(/[^0-9,%]/g, '')
                           setEditingValue(value)
                         }}
                         onBlur={() => handleValueUpdate(layerData.layer.id, editingValue)}
