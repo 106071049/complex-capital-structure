@@ -4,7 +4,6 @@ import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Upload, FileSpreadsheet, ChevronDown } from "lucide-react"
 import { ChartConfig } from "@/lib/chart-types"
-import { DraggableSegmentPanel } from "./draggable-segment-panel"
 
 interface CalculationFilePanelProps {
   config: ChartConfig
@@ -21,6 +20,11 @@ export function CalculationFilePanel({ config, onChange }: CalculationFilePanelP
   const [foundAmounts, setFoundAmounts] = useState<number[]>([])
   const [totalAmount, setTotalAmount] = useState<number>(0)
   const [calculatedPercentages, setCalculatedPercentages] = useState<number[]>([])
+  const [productCellAddress, setProductCellAddress] = useState<string>("")
+  const [productNames, setProductNames] = useState<string[]>([])
+  const [productData, setProductData] = useState<number[][]>([]) // [product][column] = value
+  const [layerTotals, setLayerTotals] = useState<number[]>([]) // Total for each column/layer
+  const [productPercentages, setProductPercentages] = useState<number[][]>([]) // [product][column] = percentage
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -113,6 +117,11 @@ export function CalculationFilePanel({ config, onChange }: CalculationFilePanelP
 
       setFoundCellAddress(foundAddress)
 
+      // Variables to store for later use with product data
+      let storedAmounts: number[] = []
+      let storedTotal = 0
+      let storedPercentages: number[] = []
+
       // If found, search for amounts to the right
       if (foundAddress && foundRow >= 0 && foundCol >= 0) {
         const amounts: number[] = []
@@ -159,13 +168,181 @@ export function CalculationFilePanel({ config, onChange }: CalculationFilePanelP
           
           setCalculatedPercentages(percentages)
 
+          // Store for later use with product data
+          storedAmounts = amounts
+          storedTotal = total
+          storedPercentages = percentages
+
           // Auto-generate layers based on amounts
-          generateLayers(amounts, total, percentages)
+          // Will be called again after product data is loaded
+          generateLayers(amounts, total, percentages, [], [], [])
         }
       } else {
         setFoundAmounts([])
         setTotalAmount(0)
         setCalculatedPercentages([])
+      }
+
+      // Search for product cell: "$ / No. of FD CSEs at Breakpoint" or contains "$ / No" and "FD"
+      let productAddress = ''
+      let productRow = -1
+      let productCol = -1
+
+      for (let row = range.s.r; row <= range.e.r; row++) {
+        for (let col = range.s.c; col <= range.e.c; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+          const cell = worksheet[cellAddress]
+          
+          if (cell && cell.v) {
+            const cellValue = String(cell.v).toLowerCase()
+            
+            // First priority: exact match for "$ / No. of FD CSEs at Breakpoint"
+            if (cellValue.includes('$ / no. of fd cses at breakpoint')) {
+              productAddress = cellAddress
+              productRow = row
+              productCol = col
+              break
+            }
+            
+            // Second priority: contains "$ / no" and "fd"
+            if (cellValue.includes('$ / no') && cellValue.includes('fd')) {
+              productAddress = cellAddress
+              productRow = row
+              productCol = col
+            }
+          }
+        }
+        if (productAddress && productRow >= 0) break
+      }
+
+      setProductCellAddress(productAddress)
+
+      // If found, search for product names below
+      if (productAddress && productRow >= 0 && productCol >= 0) {
+        const products: string[] = []
+        let currentRow = productRow + 1 // Start from the next row
+
+        // Search down until we find "total" or empty cell
+        while (currentRow <= range.e.r) {
+          const cellAddress = XLSX.utils.encode_cell({ r: currentRow, c: productCol })
+          const cell = worksheet[cellAddress]
+          
+          // Check if cell is empty or doesn't exist
+          if (!cell || cell.v === undefined || cell.v === null || cell.v === '') {
+            currentRow++
+            continue // Skip empty cells
+          }
+
+          const cellValue = String(cell.v).trim()
+          
+          // Stop if we encounter "total"
+          if (cellValue.toLowerCase() === 'total') {
+            break
+          }
+
+          // Add non-empty product name
+          if (cellValue) {
+            products.push(cellValue)
+          }
+
+          currentRow++
+        }
+
+        setProductNames(products)
+
+        // Now read data for each product to the right
+        if (products.length > 0) {
+          const allProductData: number[][] = []
+          const productStartRow = productRow + 1
+
+          // For each product, read values to the right
+          for (let i = 0; i < products.length; i++) {
+            const productRowIndex = productStartRow + i
+            const rowData: number[] = []
+            let currentCol = productCol + 1 // Start from the next column
+
+            // Read right until we find a column where ALL products have empty cells
+            while (currentCol <= range.e.c) {
+              const cellAddress = XLSX.utils.encode_cell({ r: productRowIndex, c: currentCol })
+              const cell = worksheet[cellAddress]
+              
+              // Parse value
+              let value = 0
+              if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
+                value = typeof cell.v === 'number' ? cell.v : parseFloat(String(cell.v).replace(/,/g, ''))
+                if (isNaN(value)) value = 0
+              }
+              
+              rowData.push(value)
+              currentCol++
+            }
+
+            allProductData.push(rowData)
+          }
+
+          // Find the maximum number of columns (some products might have different lengths)
+          const maxCols = Math.max(...allProductData.map(row => row.length))
+
+          // Normalize all rows to have the same length, padding with 0
+          const normalizedData = allProductData.map(row => {
+            const normalized = [...row]
+            while (normalized.length < maxCols) {
+              normalized.push(0)
+            }
+            return normalized
+          })
+
+          // Check which columns have all zeros and trim from the end
+          let lastNonZeroCol = -1
+          for (let col = 0; col < maxCols; col++) {
+            const hasNonZero = normalizedData.some(row => row[col] !== 0)
+            if (hasNonZero) {
+              lastNonZeroCol = col
+            }
+          }
+
+          // Trim to only include columns up to the last non-zero column
+          const trimmedData = normalizedData.map(row => row.slice(0, lastNonZeroCol + 1))
+          
+          setProductData(trimmedData)
+
+          // Calculate layer totals (sum each column)
+          const totals: number[] = []
+          const numCols = trimmedData[0]?.length || 0
+          for (let col = 0; col < numCols; col++) {
+            const total = trimmedData.reduce((sum, row) => sum + (row[col] || 0), 0)
+            totals.push(total)
+          }
+          setLayerTotals(totals)
+
+          // Calculate percentages for each product in each column
+          const percentages: number[][] = []
+          for (let i = 0; i < trimmedData.length; i++) {
+            const productPercentages: number[] = []
+            for (let col = 0; col < numCols; col++) {
+              const value = trimmedData[i][col] || 0
+              const total = totals[col] || 0
+              const percentage = total > 0 ? (value / total) * 100 : 0
+              productPercentages.push(percentage)
+            }
+            percentages.push(productPercentages)
+          }
+          setProductPercentages(percentages)
+
+          // Re-generate layers with product data
+          if (storedAmounts.length > 0 && storedTotal > 0 && storedPercentages.length > 0) {
+            generateLayers(storedAmounts, storedTotal, storedPercentages, products, trimmedData, percentages)
+          }
+        } else {
+          setProductData([])
+          setLayerTotals([])
+          setProductPercentages([])
+        }
+      } else {
+        setProductNames([])
+        setProductData([])
+        setLayerTotals([])
+        setProductPercentages([])
       }
     } catch (error) {
       console.error('Error searching for Incremental cell:', error)
@@ -173,19 +350,41 @@ export function CalculationFilePanel({ config, onChange }: CalculationFilePanelP
       setFoundAmounts([])
       setTotalAmount(0)
       setCalculatedPercentages([])
+      setProductCellAddress('')
+      setProductNames([])
+      setProductData([])
+      setLayerTotals([])
+      setProductPercentages([])
     }
   }
 
-  const generateLayers = (amounts: number[], total: number, percentages: number[]) => {
+  const generateLayers = (
+    amounts: number[], 
+    total: number, 
+    percentages: number[],
+    products: string[],
+    prodData: number[][],
+    prodPercentages: number[][]
+  ) => {
     // n amounts = n+1 layers (including the top layer which is 100%)
-    // But we only show n-1 breakpoints (excluding 100%)
+    // All n amounts will have breakpoint data (cumulative from bottom)
     const numLayers = amounts.length + 1
     const newLayers = []
-
-    // Generate layers from bottom to top
-    // Bottom layer (last in amounts array) should be Layer n
-    // Top layer should be Layer 1
     
+    // Define colors for different products
+    const productColors = [
+      '#86efac', // green
+      '#fdba74', // orange
+      '#bfdbfe', // blue
+      '#fcd34d', // yellow
+      '#fecaca', // red
+      '#c4b5fd', // purple
+      '#fda4af', // pink
+      '#a7f3d0', // teal
+      '#fde68a', // amber
+      '#ddd6fe', // lavender
+    ]
+
     // Calculate individual percentages for each layer
     const layerPercentages = []
     for (let i = 0; i < amounts.length; i++) {
@@ -200,6 +399,7 @@ export function CalculationFilePanel({ config, onChange }: CalculationFilePanelP
     const topLayerPercent = 100 - percentages[percentages.length - 1]
     
     // Top layer (Layer 1) - remaining percentage to 100%
+    // No cumulative data for top layer (it's 100%)
     newLayers.push({
       id: `L1`,
       name: `Layer 1`,
@@ -207,27 +407,83 @@ export function CalculationFilePanel({ config, onChange }: CalculationFilePanelP
       percent: topLayerPercent,
       value: total - amounts.reduce((sum, a) => sum + a, 0),
       segments: [
-        { id: `s1`, label: 'Top Layer', percent: 100, color: '#e5e7eb' }
+        { id: `s1`, label: '', percent: 100, color: '#e5e7eb' }
       ]
     })
 
-    // Generate middle layers from top to bottom (Layer 2 to Layer n)
-    // But fill them with amounts from bottom to top
+    // Generate layers from Layer 2 to Layer n+1
+    // Layer 2 is right below top layer
+    // Layer n+1 is the bottom layer
+    // Breakpoints are assigned from bottom up, but shifted up by one layer:
+    // - Layer n (second from bottom) gets breakpoint 1
+    // - Layer n-1 (third from bottom) gets breakpoint 2
+    // - Layer n+1 (bottom layer) has no breakpoint
     for (let i = amounts.length - 1; i >= 0; i--) {
       const layerIndex = amounts.length - i + 1 // Layer 2, 3, 4...
       const percentage = layerPercentages[i]
       const value = amounts[i]
-
-      newLayers.push({
+      
+      // Assign cumulative data, shifted up by one layer
+      // Layer n (layerIndex = amounts.length) should get percentages[0] (first breakpoint)
+      // Layer n-1 (layerIndex = amounts.length - 1) should get percentages[1] (second breakpoint)
+      // Layer n+1 (layerIndex = amounts.length + 1, bottom) has no cumulative data
+      const cumulativeIndex = amounts.length - layerIndex
+      const hasCumulativeData = cumulativeIndex >= 0 && cumulativeIndex < percentages.length
+      
+      // Create segments based on product data
+      // Product data columns: column 0 = 層級1 (bottom layer), column 1 = 層級2, etc.
+      // layerIndex: Layer 2 = second from top, Layer 3 = third from top, ..., Layer n+1 = bottom
+      // Bottom layer (Layer n+1) should use column 0
+      // Second from bottom (Layer n) should use column 1
+      // So: columnIndex = amounts.length - layerIndex + 1
+      // But we need to map: Layer n+1 -> column 0, Layer n -> column 1
+      // layerIndex goes from (amounts.length + 1) down to 2
+      // When layerIndex = amounts.length + 1 (bottom), we want column 0
+      // When layerIndex = amounts.length (second from bottom), we want column 1
+      // Formula: columnIndex = amounts.length - layerIndex + 1
+      const columnIndex = amounts.length - layerIndex + 1
+      const segments = []
+      
+      if (products.length > 0 && prodPercentages.length > 0 && columnIndex >= 0 && columnIndex < prodPercentages[0]?.length) {
+        // Add segments for products with percentage > 0
+        for (let p = 0; p < products.length; p++) {
+          const productPercent = prodPercentages[p]?.[columnIndex] || 0
+          if (productPercent > 0) {
+            segments.push({
+              id: `s${p + 1}`,
+              label: products[p],
+              percent: productPercent,
+              color: productColors[p % productColors.length]
+            })
+          }
+        }
+      }
+      
+      // If no segments were created (no product data), use default segment
+      if (segments.length === 0) {
+        segments.push({
+          id: `s1`,
+          label: `Segment ${layerIndex}`,
+          percent: 100,
+          color: '#e5e7eb'
+        })
+      }
+      
+      const layer: any = {
         id: `L${layerIndex}`,
         name: `Layer ${layerIndex}`,
         height: 100,
         percent: percentage,
         value: value,
-        segments: [
-          { id: `s1`, label: `Segment ${layerIndex}`, percent: 100, color: '#e5e7eb' }
-        ]
-      })
+        segments: segments
+      }
+      
+      if (hasCumulativeData) {
+        layer.cumulativePercent = percentages[cumulativeIndex]
+        layer.cumulativeAmount = amounts.slice(0, cumulativeIndex + 1).reduce((sum, a) => sum + a, 0)
+      }
+
+      newLayers.push(layer)
     }
 
     // Update config with new layers
@@ -244,7 +500,7 @@ export function CalculationFilePanel({ config, onChange }: CalculationFilePanelP
   return (
     <div className="flex flex-col h-full">
       {/* Excel Upload Section */}
-      <div className="p-4 border-b border-border bg-muted/30">
+      <div className="flex-1 overflow-y-auto p-4 border-b border-border bg-muted/30">
         <h3 className="text-sm font-semibold mb-3 text-foreground">引入計算檔</h3>
         
         <div className="space-y-3">
@@ -388,13 +644,86 @@ export function CalculationFilePanel({ config, onChange }: CalculationFilePanelP
                           <div className="text-purple-700 dark:text-purple-300 font-medium">
                             共 {foundAmounts.length - 1} 個 Breakpoint 點
                           </div>
-                          <div className="text-purple-600 dark:text-purple-400 text-[10px]">
-                            (100% 不顯示在圖表上)
-                          </div>
                           <div className="text-purple-700 dark:text-purple-300 font-medium">
-                            自動生成 {foundAmounts.length + 1} 層
+                            自動生成 {foundAmounts.length} 層
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Product Information */}
+                  {productCellAddress && (
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-md">
+                      <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 mb-2">
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="font-medium">找到金融商品儲存格</span>
+                      </div>
+                      <div className="text-emerald-600 dark:text-emerald-300 font-mono text-xs mb-2">
+                        座標: {productCellAddress}
+                      </div>
+                      {productNames.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-emerald-700 dark:text-emerald-300 font-medium text-xs">
+                            偵測到 {productNames.length} 個金融商品:
+                          </div>
+                          <div className="space-y-0.5 text-xs">
+                            {productNames.map((product, index) => (
+                              <div key={index} className="flex items-start gap-2 text-emerald-600 dark:text-emerald-400">
+                                <span className="font-mono">{index + 1}.</span>
+                                <span>{product}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Product Data Table */}
+                  {productData.length > 0 && layerTotals.length > 0 && (
+                    <div className="p-2 bg-slate-50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-md">
+                      <div className="text-slate-700 dark:text-slate-300 font-medium mb-2 text-xs">
+                        產品數據與百分比 ({layerTotals.length} 個層級)
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[10px] border-collapse">
+                          <thead>
+                            <tr className="border-b border-slate-300 dark:border-slate-700">
+                              <th className="text-left p-1 text-slate-600 dark:text-slate-400">產品</th>
+                              {layerTotals.map((_, colIndex) => (
+                                <th key={colIndex} className="text-right p-1 text-slate-600 dark:text-slate-400">
+                                  層級 {colIndex + 1}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {productNames.map((product, rowIndex) => (
+                              <tr key={rowIndex} className="border-b border-slate-200 dark:border-slate-800">
+                                <td className="p-1 text-slate-700 dark:text-slate-300 font-medium">{product}</td>
+                                {productData[rowIndex]?.map((value, colIndex) => (
+                                  <td key={colIndex} className="text-right p-1 text-slate-600 dark:text-slate-400">
+                                    <div>{value.toLocaleString()}</div>
+                                    <div className="text-[9px] text-slate-500 dark:text-slate-500">
+                                      ({productPercentages[rowIndex]?.[colIndex]?.toFixed(2) || '0.00'}%)
+                                    </div>
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                            <tr className="border-t-2 border-slate-400 dark:border-slate-600 font-semibold">
+                              <td className="p-1 text-slate-800 dark:text-slate-200">Total</td>
+                              {layerTotals.map((total, colIndex) => (
+                                <td key={colIndex} className="text-right p-1 text-slate-800 dark:text-slate-200">
+                                  {total.toLocaleString()}
+                                </td>
+                              ))}
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   )}
@@ -412,10 +741,6 @@ export function CalculationFilePanel({ config, onChange }: CalculationFilePanelP
         </div>
       </div>
 
-      {/* Draggable Segment Panel */}
-      <div className="flex-1 overflow-hidden">
-        <DraggableSegmentPanel config={config} onChange={onChange} />
-      </div>
     </div>
   )
 }

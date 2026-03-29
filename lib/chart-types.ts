@@ -11,6 +11,8 @@ export interface Layer {
   height: number
   percent?: number // Percentage of total triangle area (optional for backward compatibility)
   value?: number // Value at this layer's node (optional)
+  cumulativePercent?: number // Cumulative percentage from bottom (for calculation file mode)
+  cumulativeAmount?: number // Cumulative amount from bottom (for calculation file mode)
   nodeVisible?: boolean // Whether the node is visible (default: true)
   segments: Segment[]
 }
@@ -45,6 +47,8 @@ export interface ChartConfig {
     position: "right" | "bottom"
   }
   showNotToScale: boolean
+  displayMode?: "normal" | "tall" // Display mode: normal or tall (elongated)
+  hideLabelsBelow?: number // Hide labels for segments below this percentage (0 = show all)
   typography: {
     fontSize: number
     fontFamily: string
@@ -52,12 +56,12 @@ export interface ChartConfig {
 }
 
 export const defaultChartConfig: ChartConfig = {
-  canvas: { width: 1400, height: 700 },
+  canvas: { width: 2000, height: 1700 },
   axes: { showX: true, showY: true },
   fan: {
     enabled: true,
     start: { mode: "auto", x: 180, y: 520 },
-    end: { x: 1050, y: 80 },
+    end: { x: 1450, y: 80 },
     outerStrokeWidth: 4,
     innerStrokeWidth: 1,
     showDottedSeparators: true,
@@ -98,8 +102,10 @@ export const defaultChartConfig: ChartConfig = {
   ],
   legend: { enabled: true, position: "right" },
   showNotToScale: true,
+  displayMode: "normal",
+  hideLabelsBelow: 0,
   typography: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: "Arial, sans-serif",
   },
 }

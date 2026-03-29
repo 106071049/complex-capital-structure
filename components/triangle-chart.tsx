@@ -32,14 +32,19 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
     const fontSize = typography?.fontSize ?? 14
     const fontFamily = typography?.fontFamily ?? "Arial, sans-serif"
 
+    const displayMode = config.displayMode || "normal"
+    const heightMultiplier = displayMode === "tall" ? 2.5 : 1
+    
     const scaledWidth = canvas.width * scale
-    const scaledHeight = canvas.height * scale
+    const scaledHeight = canvas.height * heightMultiplier * scale
 
     // Calculate the fan geometry
     const geometry = useMemo(() => {
+      
       const padding = { left: 60, right: legend.enabled ? 280 : 40, top: 40, bottom: 60 }
       const chartWidth = canvas.width - padding.left - padding.right
-      const chartHeight = canvas.height - padding.top - padding.bottom
+      const baseChartHeight = canvas.height - padding.top - padding.bottom
+      const chartHeight = baseChartHeight * heightMultiplier
 
       // Fan start and end points
       const startX = padding.left + (fan.start.mode === "auto" ? 0 : fan.start.x - padding.left)
@@ -80,8 +85,9 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
         endX,
         endY,
         layerBoundaries,
+        heightMultiplier,
       }
-    }, [canvas, fan, layers, legend])
+    }, [canvas, fan, layers, legend, config.displayMode])
 
     // Function to find intersection point on the sloped edge
     const getLeftEdgeX = (y: number) => {
@@ -440,10 +446,14 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
         )
 
         // Push label to separate array (will be rendered on top)
-        if (segment.label) {
+        // Check if label should be hidden based on percentage threshold
+        const hideLabelsBelow = config.hideLabelsBelow || 0
+        const shouldShowLabel = segment.label && segment.percent >= hideLabelsBelow
+        
+        if (shouldShowLabel) {
           segmentLabels.push(
             <g 
-              key={`${layer.id}-${segment.id}-${segIndex}-label`}
+              key={labelKey}
               onMouseEnter={() => setHoveredSegment(labelKey)}
               onMouseLeave={() => setHoveredSegment(null)}
             >
@@ -452,20 +462,24 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                 onMouseDown={handleLabelMouseDown}
                 style={{ 
                   cursor: onLabelPositionChange ? 'move' : 'default',
-                  transform: isHovered ? 'scale(1.1)' : 'scale(1)',
+                  transform: (isHovered && !draggedLabel) ? 'scale(1.05)' : 'scale(1)',
                   transformOrigin: `${labelX}px ${labelY}px`,
-                  transition: 'transform 0.2s ease'
+                  transition: draggedLabel === labelKey ? 'none' : 'transform 0.15s ease',
+                  willChange: 'transform'
                 }}
               >
                 {/* Leader line when label is moved (render first, behind text) */}
-                {hasCustomPosition && (() => {
+                {(() => {
                   // Calculate the direction vector from center to label
                   const dx = labelX - centerX
                   const dy = labelY - centerY
                   const distance = Math.sqrt(dx * dx + dy * dy)
                   
+                  // Only show leader line if label has been moved significantly (more than 10 pixels from center)
+                  if (distance < 10) return null
+                  
                   // Stop the line before reaching the text (leave a gap)
-                  const gap = isHovered ? 45 : 35 // Larger gap on hover due to background box
+                  const gap = (isHovered && !draggedLabel) ? 40 : 35
                   const ratio = distance > gap ? (distance - gap) / distance : 0
                   
                   // Calculate the end point of the line (before the text)
@@ -479,25 +493,26 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                       x2={lineEndX}
                       y2={lineEndY}
                       stroke="#000000"
-                      strokeWidth={isHovered ? 1.5 : 1}
+                      strokeWidth={(isHovered && !draggedLabel) ? 1.5 : 1}
                       strokeDasharray="4 2"
-                      opacity={isHovered ? 0.7 : 0.5}
-                      style={{ transition: 'all 0.2s ease' }}
+                      opacity={(isHovered && !draggedLabel) ? 0.7 : 0.5}
+                      style={{ transition: draggedLabel === labelKey ? 'none' : 'all 0.15s ease' }}
                     />
                   )
                 })()}
                 {/* Background for better readability on hover */}
-                {isHovered && (
+                {(isHovered && !draggedLabel) && (
                   <rect
                     x={labelX - 40}
-                    y={labelY - 15}
+                    y={labelY - 12}
                     width={80}
-                    height={35}
+                    height={30}
                     fill={segment.color}
-                    opacity={0.95}
+                    opacity={0.9}
                     rx={4}
                     style={{
-                      filter: 'brightness(1.3) drop-shadow(0 2px 4px rgba(0,0,0,0.15))'
+                      filter: 'brightness(1.2) drop-shadow(0 1px 3px rgba(0,0,0,0.1))',
+                      pointerEvents: 'none'
                     }}
                   />
                 )}
@@ -508,18 +523,19 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                   dominantBaseline="middle"
                   className="fill-foreground font-medium"
                   style={{ 
-                    fontSize: Math.max(9, Math.min(fontSize * 0.85, (bottom - top) / 4)),
+                    fontSize: fontSize * 0.85,
                     fontFamily: fontFamily,
-                    fontWeight: isHovered ? 600 : 500,
+                    fontWeight: (isHovered && !draggedLabel) ? 600 : 500,
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     MozUserSelect: 'none',
-                    msUserSelect: 'none'
+                    msUserSelect: 'none',
+                    transition: draggedLabel === labelKey ? 'none' : 'font-weight 0.15s ease'
                   }}
                 >
                   {segment.label}
                   <tspan x={labelX} dy="1.2em" style={{ fontSize: fontSize * 0.7, fontFamily: fontFamily, userSelect: 'none' }}>
-                    {segment.percent.toFixed(1)}%
+                    {segment.percent.toFixed(2)}%
                   </tspan>
                 </text>
               </g>
@@ -578,6 +594,15 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
       const items: JSX.Element[] = []
 
       layers.forEach((layer, layerIndex) => {
+        // Skip the first layer (Layer 1) in the legend
+        if (layerIndex === 0) {
+          return
+        }
+        
+        // Display layer number minus 1 (Layer 2 becomes Layer 1, etc.)
+        const displayLayerNumber = layerIndex
+        const displayLayerName = `Layer ${displayLayerNumber}`
+        
         items.push(
           <text
             key={`legend-title-${layer.id}`}
@@ -586,17 +611,22 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
             className="fill-foreground font-semibold"
             style={{ fontSize: fontSize * 0.85, fontFamily: fontFamily }}
           >
-            {layer.name}
+            {displayLayerName}
           </text>
         )
         legendY += 18
 
         layer.segments.forEach((segment) => {
+          // Skip empty labels
+          if (!segment.label) {
+            return
+          }
+          
           items.push(
             <g key={`legend-${layer.id}-${segment.id}`}>
               <rect x={legendX} y={legendY - 10} width={12} height={12} fill={segment.color} rx={2} />
               <text x={legendX + 18} y={legendY} className="fill-muted-foreground" style={{ fontSize: fontSize * 0.75, fontFamily: fontFamily }}>
-                {segment.label}: {segment.percent.toFixed(1)}%
+                {segment.label}: {segment.percent.toFixed(2)}%
               </text>
             </g>
           )
@@ -611,10 +641,12 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
       return <g>{items}</g>
     }
 
+    const viewBoxHeight = canvas.height * heightMultiplier
+    
     return (
       <svg
         ref={ref}
-        viewBox={`0 0 ${canvas.width} ${canvas.height}`}
+        viewBox={`0 0 ${canvas.width} ${viewBoxHeight}`}
         width={scaledWidth}
         height={scaledHeight}
         className="bg-background"
@@ -677,7 +709,7 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
         {/* Background */}
         <rect 
           width={canvas.width} 
-          height={canvas.height} 
+          height={viewBoxHeight} 
           fill="transparent"
           style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
           onMouseDown={(e) => {
@@ -804,14 +836,18 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
 
             {/* Layer nodes - interactive circles at left edge intersections */}
             {geometry.layerBoundaries.map((layerData, index) => {
-              if (index === geometry.layerBoundaries.length - 1) return null // Skip last layer (bottom)
-              
               const nodeY = layerData.bottom
               const nodeX = getLeftEdgeX(nodeY)
               const nodeId = `node-${layerData.layer.id}`
               const isHovered = hoveredNode === nodeId
               const isEditing = editingNode === layerData.layer.id
               const hasValue = layerData.layer.value !== undefined && layerData.layer.value !== null
+              
+              // Skip first layer (top) and last layer (bottom)
+              if (index === 0 || index === geometry.layerBoundaries.length - 1) return null
+              
+              // Skip layers without value (no breakpoint to show)
+              if (!hasValue) return null
               
               return (
                 <g key={nodeId}>
@@ -862,29 +898,38 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                     const defaultPos = { x: nodeX - 100, y: nodeY }
                     const valuePos = nodeValuePositions[valueId] || defaultPos
                     
-                    // Calculate cumulative percentage from bottom to current layer
-                    // Note: We sum from bottom up to current layer (excluding layer 0 which is 100%)
-                    const currentLayerIndex = index
-                    const totalLayers = geometry.layerBoundaries.length
+                    // Use stored cumulative percentage if available (from calculation file mode)
+                    // Otherwise calculate from bottom to current layer
                     let cumulativePercent = 0
+                    let cumulativeAmount = layerData.layer.value || 0
                     
-                    // Sum percentages from bottom (last layer) to current layer
-                    // Start from the last layer and go up to current layer
-                    for (let i = totalLayers - 1; i > currentLayerIndex; i--) {
-                      const layer = config.layers[i]
-                      cumulativePercent += layer.percent || 0
+                    if (layerData.layer.cumulativePercent !== undefined) {
+                      // Use pre-calculated cumulative percentage from calculation file
+                      cumulativePercent = layerData.layer.cumulativePercent
+                      cumulativeAmount = layerData.layer.cumulativeAmount || layerData.layer.value || 0
+                    } else {
+                      // Calculate cumulative percentage from bottom to current layer (original logic)
+                      // Note: We sum from bottom up to current layer (excluding layer 0 which is 100%)
+                      const currentLayerIndex = index
+                      const totalLayers = geometry.layerBoundaries.length
+                      
+                      // Sum percentages from bottom (last layer) to current layer
+                      // Start from the last layer and go up to current layer
+                      for (let i = totalLayers - 1; i > currentLayerIndex; i--) {
+                        const layer = config.layers[i]
+                        cumulativePercent += layer.percent || 0
+                      }
+                      cumulativeAmount = layerData.layer.value || 0
                     }
                     
-                    // Format display: if value is 0, only show percentage; otherwise show "value percentage%"
-                    const formattedValue = layerData.layer.value === 0 
-                      ? `${cumulativePercent.toFixed(1)}%`
-                      : `${formatNumber(layerData.layer.value!)} ${cumulativePercent.toFixed(1)}%`
+                    // Format display: show "cumulativeAmount (cumulativePercent%)"
+                    const formattedValue = `${formatNumber(cumulativeAmount)} (${cumulativePercent.toFixed(2)}%)`
                     
                     // Calculate box dimensions based on text length
                     const textWidth = formattedValue.length * (fontSize * 0.5)
                     const boxWidth = textWidth + 16
                     const boxHeight = fontSize * 1.5
-                    const boxX = valuePos.x
+                    const boxX = valuePos.x - 30
                     const boxY = valuePos.y - boxHeight / 2
                     
                     return (

@@ -46,6 +46,7 @@ export default function TriangleBuilderPage() {
   const [activeTab, setActiveTab] = useState<'settings' | 'precase' | 'calculation'>('precase')
   const [previousMode, setPreviousMode] = useState<'precase' | 'calculation'>('precase')
   const [showBreakpoints, setShowBreakpoints] = useState(true)
+  const [hideLabelsInput, setHideLabelsInput] = useState<string>('0')
   
   // Get current mode's config and setters based on active tab or previous mode
   const getCurrentMode = () => activeTab === 'settings' ? previousMode : (activeTab === 'precase' || activeTab === 'calculation' ? activeTab : 'precase')
@@ -56,6 +57,11 @@ export default function TriangleBuilderPage() {
   const setLabelPositions = currentMode === 'precase' ? setPrecaseLabelPositions : setCalculationLabelPositions
   const nodeValuePositions = currentMode === 'precase' ? precaseNodeValuePositions : calculationNodeValuePositions
   const setNodeValuePositions = currentMode === 'precase' ? setPrecaseNodeValuePositions : setCalculationNodeValuePositions
+  
+  // Sync hideLabelsInput with config.hideLabelsBelow
+  useEffect(() => {
+    setHideLabelsInput(String(config.hideLabelsBelow || 0))
+  }, [config.hideLabelsBelow])
 
   // Handle tab change and track previous mode
   const handleTabChange = (tab: 'settings' | 'precase' | 'calculation') => {
@@ -274,6 +280,61 @@ export default function TriangleBuilderPage() {
           >
             {showBreakpoints ? "隱藏Breakpoint點" : "顯示Breakpoint點"}
           </Button>
+          
+          <Button 
+            size="sm" 
+            variant={config.legend.enabled ? "outline" : "default"} 
+            className="text-xs" 
+            onClick={() => {
+              setConfig({
+                ...config,
+                legend: {
+                  ...config.legend,
+                  enabled: !config.legend.enabled
+                }
+              })
+            }}
+          >
+            {config.legend.enabled ? "隱藏圖例" : "顯示圖例"}
+          </Button>
+          
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground">隱藏低於</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={hideLabelsInput}
+              onChange={(e) => {
+                setHideLabelsInput(e.target.value)
+              }}
+              onBlur={() => {
+                const value = parseFloat(hideLabelsInput) || 0
+                const clampedValue = Math.max(0, Math.min(100, value))
+                setConfig({
+                  ...config,
+                  hideLabelsBelow: clampedValue
+                })
+                setHideLabelsInput(String(clampedValue))
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const value = parseFloat(hideLabelsInput) || 0
+                  const clampedValue = Math.max(0, Math.min(100, value))
+                  setConfig({
+                    ...config,
+                    hideLabelsBelow: clampedValue
+                  })
+                  setHideLabelsInput(String(clampedValue))
+                  e.currentTarget.blur()
+                }
+              }}
+              className="w-16 px-2 py-1 text-xs border border-border rounded bg-background"
+            />
+            <label className="text-xs text-muted-foreground">% 的標籤</label>
+          </div>
+          
           <Button
             variant="outline"
             size="sm"
@@ -429,15 +490,14 @@ export default function TriangleBuilderPage() {
 
           {/* Chart Container */}
           <div className="flex-1 overflow-auto p-6 relative">
-            <div className="flex items-center justify-center min-h-full">
+            <div className="flex items-start justify-center min-h-full">
               <div
-                className="bg-background rounded-lg shadow-lg border border-border overflow-hidden"
+                className="bg-background rounded-lg shadow-lg border border-border"
                 style={{
                   transform: `scale(${zoom})`,
-                  transformOrigin: "center center",
+                  transformOrigin: "top center",
                 }}
               >
-                <div className="flex-1 overflow-auto">
                 {(activeTab === 'precase' || activeTab === 'calculation' || activeTab === 'settings') && (
                   <TriangleChart 
                     ref={svgRef} 
@@ -450,13 +510,12 @@ export default function TriangleBuilderPage() {
                     showBreakpoints={showBreakpoints}
                   />
                 )}
-                </div>
               </div>
             </div>
-            {/* 署名 */}
-            <div className="absolute bottom-4 right-4 text-xs text-muted-foreground/60">
-              Created by Louis Li
-            </div>
+          </div>
+          {/* 署名 */}
+          <div className="absolute bottom-4 right-4 text-xs text-muted-foreground/60">
+            Created by Louis Li
           </div>
         </main>
       </div>
