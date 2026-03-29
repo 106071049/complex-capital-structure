@@ -101,12 +101,25 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
       return num.toLocaleString('en-US')
     }
 
-    // Parse formatted number string to number (handles both "1000" and "50%" formats)
+    // Parse formatted number string to number (handles "1000", "50%", and "1000 (50%)" formats)
     const parseFormattedNumber = (str: string, topValue?: number): number => {
       const trimmed = str.trim()
+      console.log('parseFormattedNumber input:', trimmed)
       
-      // Check if input is a percentage
-      if (trimmed.includes('%')) {
+      // Check if input has format "number (percentage%)" - extract the number part before parenthesis
+      const parenMatch = trimmed.match(/^([0-9,]+)\s*\(/)
+      if (parenMatch) {
+        const numberPart = parenMatch[1]
+        console.log('Matched number part:', numberPart)
+        const withoutCommas = numberPart.replace(/,/g, '')
+        console.log('Without commas:', withoutCommas)
+        const result = parseFloat(withoutCommas) || 0
+        console.log('Parse result:', result)
+        return result
+      }
+      
+      // Check if input is a percentage only
+      if (trimmed.includes('%') && !trimmed.includes('(')) {
         const percentValue = parseFloat(trimmed.replace(/%/g, '').replace(/,/g, ''))
         if (isNaN(percentValue)) return 0
         
@@ -118,24 +131,36 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
       }
       
       // Regular number input
-      return parseFloat(trimmed.replace(/,/g, '')) || 0
+      const result = parseFloat(trimmed.replace(/,/g, '')) || 0
+      console.log('Regular number parse result:', result)
+      return result
     }
 
     // Handle node click to start editing
-    const handleNodeClick = (layerId: string, currentValue?: number) => {
+    const handleNodeClick = (layerId: string, currentValue?: number, cumulativePercent?: number) => {
       setEditingNode(layerId)
-      setEditingValue(currentValue ? formatNumber(currentValue) : '')
+      // If cumulativePercent is provided (calculation file mode), show full format
+      if (cumulativePercent !== undefined && currentValue !== undefined) {
+        setEditingValue(`${formatNumber(currentValue)} (${cumulativePercent.toFixed(2)}%)`)
+      } else {
+        setEditingValue(currentValue ? formatNumber(currentValue) : '')
+      }
     }
 
     // Handle value update
     const handleValueUpdate = (layerId: string, value: string) => {
-      if (!onChange) return
+      console.log('handleValueUpdate called:', { layerId, value })
+      if (!onChange) {
+        console.log('No onChange handler')
+        return
+      }
       
       // Get top layer value for percentage conversion
       const topLayerValue = geometry.layerBoundaries[0]?.layer.value
       const numericValue = parseFormattedNumber(value, topLayerValue)
+      console.log('Parsed numeric value:', numericValue)
       
-      // Validate: value cannot be negative
+      // Only validate that value cannot be negative
       if (numericValue < 0) {
         toast.error('數值驗證失敗', {
           description: `輸入值 (${formatNumber(numericValue)}) 不能小於 0`,
@@ -146,40 +171,19 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
         return
       }
       
-      // Find the layer index
-      const layerIndex = layers.findIndex(layer => layer.id === layerId)
-      
-      // Validate: bottom layer cannot be greater than top layer
-      if (layerIndex > 0) {
-        const upperLayer = layers[layerIndex - 1]
-        if (upperLayer.value !== undefined && numericValue > upperLayer.value) {
-          toast.error('數值驗證失敗', {
-            description: `此節點的數值 (${formatNumber(numericValue)}) 不能大於上方節點的數值 (${formatNumber(upperLayer.value)})`,
-            duration: 4000,
-          })
-          setEditingNode(null)
-          setEditingValue('')
-          return
+      // No validation for low-to-high order - allow free editing
+      const updatedLayers = layers.map(layer => {
+        if (layer.id === layerId) {
+          // Update both value and cumulativeAmount (for calculation file mode)
+          return { 
+            ...layer, 
+            value: numericValue,
+            cumulativeAmount: numericValue
+          }
         }
-      }
-      
-      // Validate: top layer cannot be less than bottom layer
-      if (layerIndex < layers.length - 1) {
-        const lowerLayer = layers[layerIndex + 1]
-        if (lowerLayer.value !== undefined && numericValue < lowerLayer.value) {
-          toast.error('數值驗證失敗', {
-            description: `此節點的數值 (${formatNumber(numericValue)}) 不能小於下方節點的數值 (${formatNumber(lowerLayer.value)})`,
-            duration: 4000,
-          })
-          setEditingNode(null)
-          setEditingValue('')
-          return
-        }
-      }
-      
-      const updatedLayers = layers.map(layer => 
-        layer.id === layerId ? { ...layer, value: numericValue } : layer
-      )
+        return layer
+      })
+      console.log('Updated layers:', updatedLayers)
       
       onChange({
         ...config,
@@ -843,11 +847,8 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
               const isEditing = editingNode === layerData.layer.id
               const hasValue = layerData.layer.value !== undefined && layerData.layer.value !== null
               
-              // Skip first layer (top) and last layer (bottom)
+              // Skip first layer (top) and last layer (bottom) - hide endpoint breakpoints
               if (index === 0 || index === geometry.layerBoundaries.length - 1) return null
-              
-              // Skip layers without value (no breakpoint to show)
-              if (!hasValue) return null
               
               return (
                 <g key={nodeId}>
@@ -964,7 +965,7 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                             })
                           }}
                           onDoubleClick={() => {
-                            handleNodeClick(layerData.layer.id, layerData.layer.value)
+                            handleNodeClick(layerData.layer.id, cumulativeAmount, cumulativePercent)
                           }}
                         >
                           {/* Box background and border */}
@@ -1002,17 +1003,17 @@ export const TriangleChart = forwardRef<SVGSVGElement, TriangleChartProps>(
                   
                   {isEditing && (
                     <foreignObject
-                      x={nodeX - 140}
-                      y={nodeY - 12}
-                      width={120}
-                      height={30}
+                      x={nodeX - 200}
+                      y={nodeY - 15}
+                      width={250}
+                      height={35}
                     >
                       <input
                         type="text"
                         value={editingValue}
                         onChange={(e) => {
-                          // Allow numbers, commas, and percentage sign
-                          const value = e.target.value.replace(/[^0-9,%]/g, '')
+                          // Allow numbers, commas, percentage sign, parentheses, spaces, and decimal points
+                          const value = e.target.value.replace(/[^0-9,%.() ]/g, '')
                           setEditingValue(value)
                         }}
                         onBlur={() => handleValueUpdate(layerData.layer.id, editingValue)}

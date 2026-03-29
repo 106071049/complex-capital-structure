@@ -105,7 +105,7 @@ export const defaultChartConfig: ChartConfig = {
   displayMode: "normal",
   hideLabelsBelow: 0,
   typography: {
-    fontSize: 16,
+    fontSize: 19,
     fontFamily: "Arial, sans-serif",
   },
 }
